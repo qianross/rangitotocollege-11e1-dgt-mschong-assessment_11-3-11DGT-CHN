@@ -1,43 +1,49 @@
 import tkinter as tk
-from PIL import Image, ImageTk
 import random
 
 WIDTH, HEIGHT = 512, 512
 CIRCLE_RADIUS = 40
 
 root = tk.Tk()
-root.title("Spotlight")
+root.title("Noise Texture")
 
-canvas = tk.Canvas(root, width=WIDTH, height=HEIGHT, highlightthickness=0)
+canvas = tk.Canvas(root, width=WIDTH, height=HEIGHT)
 canvas.pack()
 
-# Generate static noise texture
-def generate_noise_image(width, height):
-    image = Image.new("RGB", (width, height))
-    pixels = image.load()
-    for x in range(width):
-        for y in range(height):
-            gray = random.randint(0, 255)
-            pixels[x, y] = (gray, gray, gray)
-    return image
+# Create static noise image
+img = tk.PhotoImage(width=WIDTH, height=HEIGHT)
+canvas_img = canvas.create_image((0, 0), image=img, anchor="nw")
 
-# Create and display noise background
-noise_image = generate_noise_image(WIDTH, HEIGHT)
-noise_photo = ImageTk.PhotoImage(noise_image)
-# Keep a reference to avoid garbage collection
-canvas.noise_photo = noise_photo
-canvas.create_image(0, 0, image=noise_photo, anchor=tk.NW, tags="background")
+# Generate static black and white noise texture
+bg_noise = [
+    [f"#{v:02x}{v:02x}{v:02x}" for v in [random.choice([0, 255]) for _ in range(HEIGHT)]]
+    for _ in range(WIDTH)
+]
 
+def draw_background():
+    for x in range(WIDTH):
+        for y in range(HEIGHT):
+            img.put(bg_noise[x][y], (x, y))
+
+draw_background()
+
+# Initial spotlight position
 circle_pos = [WIDTH // 2, HEIGHT // 2]
 target_pos = [WIDTH // 2, HEIGHT // 2]
 
-def draw_spotlight():
-    canvas.delete("spotlight")
+# Create spotlight as a canvas oval
+spotlight_id = canvas.create_oval(
+    circle_pos[0] - CIRCLE_RADIUS, circle_pos[1] - CIRCLE_RADIUS,
+    circle_pos[0] + CIRCLE_RADIUS, circle_pos[1] + CIRCLE_RADIUS,
+    fill="white", outline=""
+)
+
+def update_spotlight():
     cx, cy = int(circle_pos[0]), int(circle_pos[1])
-    canvas.create_oval(
+    canvas.coords(
+        spotlight_id,
         cx - CIRCLE_RADIUS, cy - CIRCLE_RADIUS,
-        cx + CIRCLE_RADIUS, cy + CIRCLE_RADIUS,
-        fill="white", outline="", tags="spotlight"
+        cx + CIRCLE_RADIUS, cy + CIRCLE_RADIUS
     )
 
 def glide():
@@ -47,7 +53,7 @@ def glide():
     if abs(dx) > 1 or abs(dy) > 1:
         circle_pos[0] += dx * speed
         circle_pos[1] += dy * speed
-        draw_spotlight()
+        update_spotlight()
     root.after(24, glide)
 
 def on_mouse_move(event):
@@ -56,7 +62,5 @@ def on_mouse_move(event):
 
 canvas.bind("<Motion>", on_mouse_move)
 
-draw_spotlight()
 glide()
-
 root.mainloop()
