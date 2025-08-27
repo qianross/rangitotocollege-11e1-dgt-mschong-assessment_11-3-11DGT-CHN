@@ -2,71 +2,83 @@ import tkinter as tk
 import math
 
 WIDTH, HEIGHT = 512, 512
-CIRCLE_RADIUS = 40
-PIXEL_SIZE = 8
+CIRCLE_RADIUS = 20
 FRAME_DELAY = 16  # ~60 FPS
+MOVE_SPEED = 4
 
-GRID_WIDTH = WIDTH // PIXEL_SIZE
-GRID_HEIGHT = HEIGHT // PIXEL_SIZE
-
-def rgb_to_hex(rgb):
-    return "#%02x%02x%02x" % rgb
+def rgb_to_hex(rgb_tuple):
+    return "#%02x%02x%02x" % rgb_tuple
 
 root = tk.Tk()
-root.title("Optimized Spotlight")
+root.title("WASD-Controlled Spotlight")
 
 canvas = tk.Canvas(root, width=WIDTH, height=HEIGHT)
 canvas.pack()
 
+# Load background and spotlight textures
 bg_img = tk.PhotoImage(file="C:/Users/182379.RANGIWORLD.000/Downloads/noiseTexture.png")
 spotlight_src = tk.PhotoImage(file="C:/Users/182379.RANGIWORLD.000/Downloads/noiseTexture (1).png")
-spotlight_img = tk.PhotoImage(width=WIDTH, height=HEIGHT)
 
+# Draw background once
 canvas.create_image((0, 0), image=bg_img, anchor="nw")
+
+# Create spotlight image layer
+spotlight_img = tk.PhotoImage(width=WIDTH, height=HEIGHT)
 canvas.create_image((0, 0), image=spotlight_img, anchor="nw")
 
 circle_pos = [WIDTH // 2, HEIGHT // 2]
-target_pos = [WIDTH // 2, HEIGHT // 2]
-
-# Precompute pixel centers
-pixel_centers = [(gx * PIXEL_SIZE + PIXEL_SIZE // 2, gy * PIXEL_SIZE + PIXEL_SIZE // 2)
-                 for gx in range(GRID_WIDTH) for gy in range(GRID_HEIGHT)]
-
-# Precompute hex color grids
-bg_colors = [[rgb_to_hex(bg_img.get(x, y)) for y in range(HEIGHT)] for x in range(WIDTH)]
-spotlight_colors = [[rgb_to_hex(spotlight_src.get(x, y)) for y in range(HEIGHT)] for x in range(WIDTH)]
+keys_pressed = set()
 
 def draw_spotlight():
     cx, cy = int(circle_pos[0]), int(circle_pos[1])
-    pixels = []
-    for x, y in pixel_centers:
-        dist = math.hypot(x - cx, y - cy)
-        color = spotlight_colors[x][y] if dist <= CIRCLE_RADIUS else bg_colors[x][y]
-        pixels.append((color, (x - PIXEL_SIZE // 2, y - PIXEL_SIZE // 2,
-                               x + PIXEL_SIZE // 2, y + PIXEL_SIZE // 2)))
-    for color, box in pixels:
-        spotlight_img.put(color, to=box)
+    r = CIRCLE_RADIUS
 
-    canvas.delete("test_circle")
-    canvas.create_oval(cx - CIRCLE_RADIUS, cy - CIRCLE_RADIUS,
-                       cx + CIRCLE_RADIUS, cy + CIRCLE_RADIUS,
-                       outline="", width=2, tags="test_circle")
+    x0 = max(cx - r, 0)
+    y0 = max(cy - r, 0)
+    x1 = min(cx + r, WIDTH - 1)
+    y1 = min(cy + r, HEIGHT - 1)
 
-def glide():
-    speed = 0.2
-    dx = target_pos[0] - circle_pos[0]
-    dy = target_pos[1] - circle_pos[1]
-    if abs(dx) > 1 or abs(dy) > 1:
-        circle_pos[0] += dx * speed
-        circle_pos[1] += dy * speed
+    for x in range(x0, x1):
+        for y in range(y0, y1):
+            dist = math.hypot(x - cx, y - cy)
+            if dist <= r:
+                color = rgb_to_hex(spotlight_src.get(x, y))
+            else:
+                color = rgb_to_hex(bg_img.get(x, y))
+            spotlight_img.put(color, (x, y))
+
+    canvas.delete("circle")
+    canvas.create_oval(cx - r, cy - r, cx + r, cy + r, outline="", width=2, tags="circle")
+
+def move_spotlight():
+    moved = False
+    if 'w' in keys_pressed:
+        circle_pos[1] = max(circle_pos[1] - MOVE_SPEED, CIRCLE_RADIUS)
+        moved = True
+    if 's' in keys_pressed:
+        circle_pos[1] = min(circle_pos[1] + MOVE_SPEED, HEIGHT - CIRCLE_RADIUS)
+        moved = True
+    if 'a' in keys_pressed:
+        circle_pos[0] = max(circle_pos[0] - MOVE_SPEED, CIRCLE_RADIUS)
+        moved = True
+    if 'd' in keys_pressed:
+        circle_pos[0] = min(circle_pos[0] + MOVE_SPEED, WIDTH - CIRCLE_RADIUS)
+        moved = True
+
+    if moved:
         draw_spotlight()
-    root.after(FRAME_DELAY, glide)
 
-def on_mouse_move(event):
-    target_pos[0] = (event.x // PIXEL_SIZE) * PIXEL_SIZE + PIXEL_SIZE // 2
-    target_pos[1] = (event.y // PIXEL_SIZE) * PIXEL_SIZE + PIXEL_SIZE // 2
+    root.after(FRAME_DELAY, move_spotlight)
 
-canvas.bind("<Motion>", on_mouse_move)
+def on_key_press(event):
+    keys_pressed.add(event.keysym.lower())
+
+def on_key_release(event):
+    keys_pressed.discard(event.keysym.lower())
+
+root.bind("<KeyPress>", on_key_press)
+root.bind("<KeyRelease>", on_key_release)
+
 draw_spotlight()
-glide()
+move_spotlight()
 root.mainloop()
