@@ -75,7 +75,7 @@ def draw_spotlight():
     canvas.create_oval(
         leader_pos[0] - r, leader_pos[1] - r,
         leader_pos[0] + r, leader_pos[1] + r,
-        fill="red", outline="", tags="leader"
+        fill="white", outline="", tags="leader"
     )
 
 def update_positions():
