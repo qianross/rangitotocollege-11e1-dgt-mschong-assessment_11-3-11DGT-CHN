@@ -1,5 +1,6 @@
 import tkinter as tk
 import math
+import os
 
 WIDTH, HEIGHT = 512, 512
 CIRCLE_RADIUS = 20
@@ -15,9 +16,27 @@ root.title("WASD-Controlled Spotlight")
 canvas = tk.Canvas(root, width=WIDTH, height=HEIGHT)
 canvas.pack()
 
+# Get path to the current script directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Construct full paths to the image files
+bg_path = os.path.join(script_dir, "noiseTexture.png")
+spotlight_path = os.path.join(script_dir, "noiseTexture 1.png")
+
+# Check if image files exist
+if not os.path.exists(bg_path):
+    print(f"❌ Background image not found at: {bg_path}")
+    root.destroy()
+    exit()
+
+if not os.path.exists(spotlight_path):
+    print(f"❌ Spotlight image not found at: {spotlight_path}")
+    root.destroy()
+    exit()
+
 # Load background and spotlight textures
-bg_img = tk.PhotoImage(file="C:/Users/182379.RANGIWORLD.000/Downloads/noiseTexture.png")
-spotlight_src = tk.PhotoImage(file="C:/Users/182379.RANGIWORLD.000/Downloads/noiseTexture (1).png")
+bg_img = tk.PhotoImage(file=bg_path)
+spotlight_src = tk.PhotoImage(file=spotlight_path)
 
 # Draw background once
 canvas.create_image((0, 0), image=bg_img, anchor="nw")
