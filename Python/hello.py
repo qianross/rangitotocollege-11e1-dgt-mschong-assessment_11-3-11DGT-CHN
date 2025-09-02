@@ -4,11 +4,12 @@ import os
 import random
 
 # Constants
-WIDTH, HEIGHT = 512, 512
-CIRCLE_RADIUS = 10
+WIDTH, HEIGHT = 1000, 1000
+CIRCLE_RADIUS = 6
 FRAME_DELAY = 16  # ~60 FPS
-LEADER_SPEED = 2.75
-FOLLOWER_SPEED = 2
+LEADER_SPEED = 4.5
+FOLLOWER_SPEED = 4
+CELL_SIZE = 70  # Maze cell size
 
 # Global variables
 canvas = None
@@ -20,7 +21,7 @@ spotlight_pos = []
 keys_pressed = set()
 clock_label = None
 game_time = 0
-wall_rect = (200, 200, 300, 300)  # x1, y1, x2, y2
+wall_rects = []
 
 def rgb_to_hex(rgb_tuple):
     return "#%02x%02x%02x" % rgb_tuple
@@ -35,48 +36,25 @@ def show_menu():
     menu_frame = tk.Frame(root, width=WIDTH, height=HEIGHT, bg="black")
     menu_frame.pack(fill="both", expand=True)
 
-    title = tk.Label(
-        menu_frame,
-        text="BLINDING FEAR",
-        fg="white",
-        bg="black",
-        font=("Courier", 20, "bold")
-    )
+    title = tk.Label(menu_frame, text="BLINDING FEAR", fg="white", bg="black", font=("Courier", 20, "bold"))
     title.pack(pady=20)
 
-    start_btn = tk.Button(
-        menu_frame,
-        text="START",
-        font=("Courier", 14),
-        fg="white",
-        bg="black",
-        activeforeground="white",
-        activebackground="black",
-        highlightthickness=0,
-        bd=0,
-        command=lambda: start_game(menu_frame)
-    )
+    start_btn = tk.Button(menu_frame, text="START", font=("Courier", 14), fg="white", bg="black",
+                          activeforeground="white", activebackground="black", highlightthickness=0, bd=0,
+                          command=lambda: start_game(menu_frame))
     start_btn.pack(pady=10)
 
-    exit_btn = tk.Button(
-        menu_frame,
-        text="EXIT",
-        font=("Courier", 14),
-        fg="white",
-        bg="black",
-        activeforeground="white",
-        activebackground="black",
-        highlightthickness=0,
-        bd=0,
-        command=root.destroy
-    )
+    exit_btn = tk.Button(menu_frame, text="EXIT", font=("Courier", 14), fg="white", bg="black",
+                         activeforeground="white", activebackground="black", highlightthickness=0, bd=0,
+                         command=root.destroy)
     exit_btn.pack(pady=10)
 
 def start_game(menu_frame):
     menu_frame.destroy()
 
-    global canvas, bg_img, spotlight_src, spotlight_img, leader_pos, spotlight_pos, clock_label, game_time
+    global canvas, bg_img, spotlight_src, spotlight_img, leader_pos, spotlight_pos, clock_label, game_time, wall_rects
     game_time = 0
+    wall_rects.clear()
 
     canvas = tk.Canvas(root, width=WIDTH, height=HEIGHT)
     canvas.pack()
@@ -98,20 +76,55 @@ def start_game(menu_frame):
     spotlight_img = tk.PhotoImage(width=WIDTH, height=HEIGHT)
     canvas.create_image((0, 0), image=spotlight_img, anchor="nw")
 
-    # Draw wall
-    canvas.create_rectangle(*wall_rect, fill="#353535", outline="", tags="wall")
+    # Maze generation
+    GRID_COLS = WIDTH // CELL_SIZE
+    GRID_ROWS = HEIGHT // CELL_SIZE
+    maze = [[[False, True, True, True, True] for _ in range(GRID_COLS)] for _ in range(GRID_ROWS)]
 
-    # Random initial positions
-    leader_pos = [
-        random.randint(CIRCLE_RADIUS, WIDTH - CIRCLE_RADIUS),
-        random.randint(CIRCLE_RADIUS, HEIGHT - CIRCLE_RADIUS)
-    ]
-    spotlight_pos = [
-        random.randint(CIRCLE_RADIUS, WIDTH - CIRCLE_RADIUS),
-        random.randint(CIRCLE_RADIUS, HEIGHT - CIRCLE_RADIUS)
-    ]
+    def carve_maze(x, y):
+        maze[y][x][0] = True
+        directions = [(0, -1, 1, 3), (1, 0, 2, 0), (0, 1, 3, 1), (-1, 0, 0, 2)]
+        random.shuffle(directions)
+        for dx, dy, wall, opposite in directions:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < GRID_COLS and 0 <= ny < GRID_ROWS and not maze[ny][nx][0]:
+                maze[y][x][wall + 1] = False
+                maze[ny][nx][opposite + 1] = False
+                carve_maze(nx, ny)
 
-    # Clock label
+    start_x = random.randint(0, GRID_COLS - 1)
+    start_y = random.randint(0, GRID_ROWS - 1)
+    carve_maze(start_x, start_y)
+
+    for row in range(GRID_ROWS):
+        for col in range(GRID_COLS):
+            x1 = col * CELL_SIZE
+            y1 = row * CELL_SIZE
+            x2 = x1 + CELL_SIZE
+            y2 = y1 + CELL_SIZE
+            _, top, right, bottom, left = maze[row][col]
+            if top:
+                wall_rects.append((x1, y1, x2, y1 + 2))
+            if right:
+                wall_rects.append((x2 - 2, y1, x2, y2))
+            if bottom:
+                wall_rects.append((x1, y2 - 2, x2, y2))
+            if left:
+                wall_rects.append((x1, y1, x1 + 2, y2))
+
+    for x1, y1, x2, y2 in wall_rects:
+        canvas.create_rectangle(x1, y1, x2, y2, fill="#000000", outline="", tags="wall")
+
+    def get_safe_spawn():
+        while True:
+            x = random.randint(CIRCLE_RADIUS, WIDTH - CIRCLE_RADIUS)
+            y = random.randint(CIRCLE_RADIUS, HEIGHT - CIRCLE_RADIUS)
+            if not will_collide(x, y):
+                return [x, y]
+
+    leader_pos = get_safe_spawn()
+    spotlight_pos = get_safe_spawn()
+
     clock_label = tk.Label(root, text="00:00", font=("Courier", 14), fg="white", bg="black")
     clock_label.place(x=10, y=10)
 
@@ -148,20 +161,17 @@ def draw_spotlight():
     )
 
 def will_collide(x, y):
-    x1, y1, x2, y2 = wall_rect
-    return x1 - CIRCLE_RADIUS < x < x2 + CIRCLE_RADIUS and y1 - CIRCLE_RADIUS < y < y2 + CIRCLE_RADIUS
+    for x1, y1, x2, y2 in wall_rects:
+        if x1 - CIRCLE_RADIUS < x < x2 + CIRCLE_RADIUS and y1 - CIRCLE_RADIUS < y < y2 + CIRCLE_RADIUS:
+            return True
+    return False
 
 def update_positions():
     moving = False
     new_x, new_y = leader_pos[0], leader_pos[1]
-
-    # Default to base speed
     leader_speed = LEADER_SPEED
-
-    # Check if pressing into wall
     pressing_into_wall = False
 
-    # Check vertical collision intent
     if 'w' in keys_pressed:
         test_y = max(leader_pos[1] - LEADER_SPEED, CIRCLE_RADIUS)
         if will_collide(leader_pos[0], test_y):
@@ -170,8 +180,6 @@ def update_positions():
         test_y = min(leader_pos[1] + LEADER_SPEED, HEIGHT - CIRCLE_RADIUS)
         if will_collide(leader_pos[0], test_y):
             pressing_into_wall = True
-
-    # Check horizontal collision intent
     if 'a' in keys_pressed:
         test_x = max(leader_pos[0] - LEADER_SPEED, CIRCLE_RADIUS)
         if will_collide(test_x, leader_pos[1]):
@@ -181,11 +189,9 @@ def update_positions():
         if will_collide(test_x, leader_pos[1]):
             pressing_into_wall = True
 
-    # Apply speed boost if pressing into wall
     if pressing_into_wall:
         leader_speed = int(LEADER_SPEED * 2)
 
-    # Attempt vertical movement
     if 'w' in keys_pressed:
         test_y = max(leader_pos[1] - leader_speed, CIRCLE_RADIUS)
         if not will_collide(leader_pos[0], test_y):
@@ -196,8 +202,6 @@ def update_positions():
         if not will_collide(leader_pos[0], test_y):
             new_y = test_y
         moving = True
-
-    # Attempt horizontal movement
     if 'a' in keys_pressed:
         test_x = max(leader_pos[0] - leader_speed, CIRCLE_RADIUS)
         if not will_collide(test_x, new_y):
@@ -211,7 +215,6 @@ def update_positions():
 
     leader_pos[0], leader_pos[1] = new_x, new_y
 
-    # Move spotlight toward leader
     if moving:
         dx = leader_pos[0] - spotlight_pos[0]
         dy = leader_pos[1] - spotlight_pos[1]
@@ -227,7 +230,7 @@ def update_positions():
 def update_clock():
     global game_time
     if any(k in keys_pressed for k in ['w', 'a', 's', 'd']):
-        game_time += FRAME_DELAY / 1000  # Convert ms to seconds
+        game_time += FRAME_DELAY / 1000
 
     minutes = int(game_time) // 60
     seconds = int(game_time) % 60
