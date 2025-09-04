@@ -6,10 +6,14 @@ import random
 # Constants
 WIDTH, HEIGHT = 1000, 1000
 CIRCLE_RADIUS = 6
-FRAME_DELAY = 16  # ~60 FPS
-LEADER_SPEED = 4.5
+FRAME_DELAY = 16
+LEADER_SPEED = 4.1
 FOLLOWER_SPEED = 4
-CELL_SIZE = 70  # Maze cell size
+CELL_SIZE = 80
+WALL_THICKNESS = 7
+GAP_SIZE = 25
+GHOST_RADIUS = 6
+GHOST_SPEED = 3.5
 
 # Global variables
 canvas = None
@@ -18,6 +22,7 @@ spotlight_src = None
 spotlight_img = None
 leader_pos = []
 spotlight_pos = []
+ghosts = []
 keys_pressed = set()
 clock_label = None
 game_time = 0
@@ -26,17 +31,16 @@ wall_rects = []
 def rgb_to_hex(rgb_tuple):
     return "#%02x%02x%02x" % rgb_tuple
 
-# Initialize window
 root = tk.Tk()
 root.title("Blinding Fear")
 root.geometry(f"{WIDTH}x{HEIGHT}")
 root.configure(bg="black")
 
-def show_menu():
+def show_menu(title_text="BLINDING FEAR"):
     menu_frame = tk.Frame(root, width=WIDTH, height=HEIGHT, bg="black")
     menu_frame.pack(fill="both", expand=True)
 
-    title = tk.Label(menu_frame, text="BLINDING FEAR", fg="white", bg="black", font=("Courier", 20, "bold"))
+    title = tk.Label(menu_frame, text=title_text, fg="white", bg="black", font=("Courier", 20, "bold"))
     title.pack(pady=20)
 
     start_btn = tk.Button(menu_frame, text="START", font=("Courier", 14), fg="white", bg="black",
@@ -50,16 +54,21 @@ def show_menu():
     exit_btn.pack(pady=10)
 
 def start_game(menu_frame):
+    canvas = tk.Canvas(root, width=WIDTH, height=HEIGHT)
+    canvas.pack()
+    canvas.focus_set()
+    canvas.bind("<KeyPress>", on_key_press)
+    canvas.bind("<KeyRelease>", on_key_release)
     menu_frame.destroy()
 
-    global canvas, bg_img, spotlight_src, spotlight_img, leader_pos, spotlight_pos, clock_label, game_time, wall_rects
+    global canvas, bg_img, spotlight_src, spotlight_img, leader_pos, spotlight_pos, clock_label, game_time, wall_rects, ghosts
     game_time = 0
     wall_rects.clear()
+    ghosts.clear()
 
     canvas = tk.Canvas(root, width=WIDTH, height=HEIGHT)
     canvas.pack()
 
-    # Load images
     script_dir = os.path.dirname(os.path.abspath(__file__))
     bg_path = os.path.join(script_dir, "noiseTexture.png")
     spotlight_path = os.path.join(script_dir, "noiseTexture 1.png")
@@ -76,7 +85,6 @@ def start_game(menu_frame):
     spotlight_img = tk.PhotoImage(width=WIDTH, height=HEIGHT)
     canvas.create_image((0, 0), image=spotlight_img, anchor="nw")
 
-    # Maze generation
     GRID_COLS = WIDTH // CELL_SIZE
     GRID_ROWS = HEIGHT // CELL_SIZE
     maze = [[[False, True, True, True, True] for _ in range(GRID_COLS)] for _ in range(GRID_ROWS)]
@@ -103,14 +111,46 @@ def start_game(menu_frame):
             x2 = x1 + CELL_SIZE
             y2 = y1 + CELL_SIZE
             _, top, right, bottom, left = maze[row][col]
+
             if top:
-                wall_rects.append((x1, y1, x2, y1 + 2))
+                if x2 - x1 >= CELL_SIZE:
+                    offset = random.randint(1, 9)
+                    mid_x1 = x1 + (CELL_SIZE - GAP_SIZE) // offset
+                    mid_x2 = mid_x1 + GAP_SIZE
+                    wall_rects.append((x1, y1, mid_x1, y1 + WALL_THICKNESS))
+                    wall_rects.append((mid_x2, y1, x2, y1 + WALL_THICKNESS))
+                else:
+                    wall_rects.append((x1, y1, x2, y1 + WALL_THICKNESS))
+
             if right:
-                wall_rects.append((x2 - 2, y1, x2, y2))
+                if y2 - y1 >= CELL_SIZE:
+                    offset = random.randint(1, 9)
+                    mid_y1 = y1 + (CELL_SIZE - GAP_SIZE) // offset
+                    mid_y2 = mid_y1 + GAP_SIZE
+                    wall_rects.append((x2 - WALL_THICKNESS, y1, x2, mid_y1))
+                    wall_rects.append((x2 - WALL_THICKNESS, mid_y2, x2, y2))
+                else:
+                    wall_rects.append((x2 - WALL_THICKNESS, y1, x2, y2))
+
             if bottom:
-                wall_rects.append((x1, y2 - 2, x2, y2))
+                if x2 - x1 >= CELL_SIZE:
+                    offset = random.randint(1, 9)
+                    mid_x1 = x1 + (CELL_SIZE - GAP_SIZE) // offset
+                    mid_x2 = mid_x1 + GAP_SIZE
+                    wall_rects.append((x1, y2 - WALL_THICKNESS, mid_x1, y2))
+                    wall_rects.append((mid_x2, y2 - WALL_THICKNESS, x2, y2))
+                else:
+                    wall_rects.append((x1, y2 - WALL_THICKNESS, x2, y2))
+
             if left:
-                wall_rects.append((x1, y1, x1 + 2, y2))
+                if y2 - y1 >= CELL_SIZE:
+                    offset = random.randint(1, 9)
+                    mid_y1 = y1 + (CELL_SIZE - GAP_SIZE) // offset
+                    mid_y2 = mid_y1 + GAP_SIZE
+                    wall_rects.append((x1, y1, x1 + WALL_THICKNESS, mid_y1))
+                    wall_rects.append((x1, mid_y2, x1 + WALL_THICKNESS, y2))
+                else:
+                    wall_rects.append((x1, y1, x1 + WALL_THICKNESS, y2))
 
     for x1, y1, x2, y2 in wall_rects:
         canvas.create_rectangle(x1, y1, x2, y2, fill="#000000", outline="", tags="wall")
@@ -124,6 +164,9 @@ def start_game(menu_frame):
 
     leader_pos = get_safe_spawn()
     spotlight_pos = get_safe_spawn()
+    for _ in range(4):
+        ghost_pos = get_safe_spawn()
+        ghosts.append([ghost_pos[0], ghost_pos[1]])
 
     clock_label = tk.Label(root, text="00:00", font=("Courier", 14), fg="white", bg="black")
     clock_label.place(x=10, y=10)
@@ -159,6 +202,15 @@ def draw_spotlight():
         leader_pos[0] + r, leader_pos[1] + r,
         fill="white", outline="", tags="leader"
     )
+
+    canvas.delete("ghost")
+    for x in range(int(gx - GHOST_RADIUS), int(gx + GHOST_RADIUS)):
+            for y in range(int(gy - GHOST_RADIUS), int(gy + GHOST_RADIUS)):
+                if 0 <= x < WIDTH and 0 <= y < HEIGHT:
+                    dist = math.hypot(x - gx, y - gy)
+                    if dist <= GHOST_RADIUS:
+                        color = rgb_to_hex(spotlight_src.get(x, y))
+                        spotlight_img.put(color, (x, y))
 
 def will_collide(x, y):
     for x1, y1, x2, y2 in wall_rects:
@@ -224,6 +276,25 @@ def update_positions():
             spotlight_pos[0] += step * dx / dist
             spotlight_pos[1] += step * dy / dist
 
+        for i in range(len(ghosts)):
+            gx, gy = ghosts[i]
+            dx = leader_pos[0] - gx
+            dy = leader_pos[1] - gy
+            dist = math.hypot(dx, dy)
+            if dist > 0:
+                step = min(GHOST_SPEED, dist)
+                new_gx = gx + step * dx / dist
+                new_gy = gy + step * dy / dist
+                if not will_collide(new_gx, new_gy):
+                    ghosts[i][0] = new_gx
+                    ghosts[i][1] = new_gy
+
+        for gx, gy in ghosts:
+            if math.hypot(gx - leader_pos[0], gy - leader_pos[1]) < CIRCLE_RADIUS + GHOST_RADIUS:
+                canvas.destroy()
+                show_menu("You were caught")
+                return
+
     draw_spotlight()
     root.after(FRAME_DELAY, update_positions)
 
@@ -243,6 +314,6 @@ def on_key_press(event):
 def on_key_release(event):
     keys_pressed.discard(event.keysym.lower())
 
-# Launch menu
 show_menu()
+keys_pressed.clear()
 root.mainloop()
