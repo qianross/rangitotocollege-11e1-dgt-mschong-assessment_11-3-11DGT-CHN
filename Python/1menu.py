@@ -4,12 +4,12 @@ import subprocess
 import os
 
 def save_username(name):
-    with open("username.txt", "w") as f:
+    with open("Python/username.txt", "w") as f:
         f.write(name)
 
 def get_username():
-    if os.path.exists("username.txt"):
-        with open("username.txt", "r") as f:
+    if os.path.exists("Python/username.txt"):
+        with open("Python/username.txt", "r") as f:
             return f.read().strip()
     return None
 
@@ -47,13 +47,13 @@ frame.pack(pady=30)
 btn1 = tk.Button(frame, text="Leaderboard", width=20, height=3, command=open_leaderboard)
 btn1.grid(row=0, column=0, padx=10, pady=10)
 
-btn2 = tk.Button(frame, text="Game 1", width=20, height=3, command=lambda: launch_game("game1.py"))
+btn2 = tk.Button(frame, text="Game 1", width=20, height=3, command=lambda: launch_game("Python\game1.py"))
 btn2.grid(row=0, column=1, padx=10, pady=10)
 
-btn3 = tk.Button(frame, text="Game 2", width=20, height=3, command=lambda: launch_game("game2.py"))
+btn3 = tk.Button(frame, text="Game 2", width=20, height=3, command=lambda: launch_game("Python\game2.py"))
 btn3.grid(row=1, column=0, padx=10, pady=10)
 
-btn4 = tk.Button(frame, text="Game 3", width=20, height=3, command=lambda: launch_game("game3.py"))
+btn4 = tk.Button(frame, text="Game 3", width=20, height=3, command=lambda: launch_game("Python\game3.py"))
 btn4.grid(row=1, column=1, padx=10, pady=10)
 
 root.mainloop()
