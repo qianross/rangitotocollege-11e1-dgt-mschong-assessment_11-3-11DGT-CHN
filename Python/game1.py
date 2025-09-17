@@ -25,6 +25,15 @@ clock_label = None
 game_time = 0
 wall_rects = []
 
+NUM_BLOBS = 4
+BLOB_RADIUS = 6
+blobs = []
+score = 0
+score_label = None
+
+YELLOW_RADIUS = 10
+yellow_pos = []
+
 def rgb_to_hex(rgb_tuple):
     return "#%02x%02x%02x" % rgb_tuple
 
@@ -51,12 +60,49 @@ def show_menu():
                          command=root.destroy)
     exit_btn.pack(pady=10)
 
+def get_safe_blob_spawn():
+    while True:
+        x = random.randint(BLOB_RADIUS, WIDTH - BLOB_RADIUS)
+        y = random.randint(BLOB_RADIUS, HEIGHT - BLOB_RADIUS)
+        # Avoid walls and player start
+        if not will_collide(x, y):
+            # Don't spawn on player or other blobs
+            if math.hypot(x - leader_pos[0], y - leader_pos[1]) > CIRCLE_RADIUS + BLOB_RADIUS + 10:
+                if all(math.hypot(x - bx, y - by) > BLOB_RADIUS * 2 for bx, by in blobs):
+                    return [x, y]
+
+def spawn_blobs():
+    global blobs
+    blobs = []
+    for _ in range(NUM_BLOBS):
+        blobs.append(get_safe_blob_spawn())
+
+def draw_blobs():
+    canvas.delete("blob")
+    for bx, by in blobs:
+        canvas.create_oval(
+            bx - BLOB_RADIUS, by - BLOB_RADIUS,
+            bx + BLOB_RADIUS, by + BLOB_RADIUS,
+            fill="blue", outline="", tags="blob"
+        )
+
+def check_blob_collision():
+    global score
+    for i, (bx, by) in enumerate(blobs):
+        if math.hypot(leader_pos[0] - bx, leader_pos[1] - by) <= CIRCLE_RADIUS + BLOB_RADIUS:
+            score += 1
+            if score_label:
+                score_label.config(text=f"Score: {score}")
+            # Respawn this blob
+            blobs[i] = get_safe_blob_spawn()
+
 def start_game(menu_frame):
     menu_frame.destroy()
 
-    global canvas, bg_img, spotlight_src, spotlight_img, leader_pos, spotlight_pos, clock_label, game_time, wall_rects
+    global canvas, bg_img, spotlight_src, spotlight_img, leader_pos, spotlight_pos, clock_label, game_time, wall_rects, score, score_label, yellow_pos
     game_time = 0
     wall_rects.clear()
+    score = 0
 
     canvas = tk.Canvas(root, width=WIDTH, height=HEIGHT)
     canvas.pack()
@@ -167,8 +213,15 @@ def start_game(menu_frame):
     leader_pos = get_safe_spawn()
     spotlight_pos = get_safe_spawn()
 
+    spawn_blobs()  # Spawn blobs at game start
+
+    yellow_pos = get_safe_yellow_spawn()
+
     clock_label = tk.Label(root, text="00:00", font=("Courier", 14), fg="white", bg="black")
     clock_label.place(x=10, y=10)
+
+    score_label = tk.Label(root, text="Score: 0", font=("Courier", 14), fg="cyan", bg="black")
+    score_label.place(x=10, y=40)
 
     root.bind("<KeyPress>", on_key_press)
     root.bind("<KeyRelease>", on_key_release)
@@ -176,6 +229,25 @@ def start_game(menu_frame):
     draw_spotlight()
     update_positions()
     update_clock()
+
+def get_safe_yellow_spawn():
+    # Spawn within 80-120 pixels of the leader, random direction, but not overlapping
+    angle = random.uniform(0, 2 * math.pi)
+    dist = random.randint(80, 120)
+    x = int(leader_pos[0] + math.cos(angle) * dist)
+    y = int(leader_pos[1] + math.sin(angle) * dist)
+    # Clamp to screen bounds
+    x = max(YELLOW_RADIUS, min(WIDTH - YELLOW_RADIUS, x))
+    y = max(YELLOW_RADIUS, min(HEIGHT - YELLOW_RADIUS, y))
+    return [x, y]
+
+def draw_yellow():
+    canvas.delete("yellow")
+    canvas.create_oval(
+        yellow_pos[0] - YELLOW_RADIUS, yellow_pos[1] - YELLOW_RADIUS,
+        yellow_pos[0] + YELLOW_RADIUS, yellow_pos[1] + YELLOW_RADIUS,
+        fill="yellow", outline="", tags="yellow"
+    )
 
 def draw_spotlight():
     cx, cy = int(spotlight_pos[0]), int(spotlight_pos[1])
@@ -201,6 +273,8 @@ def draw_spotlight():
         leader_pos[0] + r, leader_pos[1] + r,
         fill="white", outline="", tags="leader"
     )
+    draw_blobs()  # Draw blobs after leader
+    draw_yellow()  # Draw yellow circle
 
 def will_collide(x, y):
     for x1, y1, x2, y2 in wall_rects:
@@ -208,8 +282,34 @@ def will_collide(x, y):
             return True
     return False
 
+def game_over():
+    # Remove game canvas and show Game Over screen
+    if canvas:
+        canvas.pack_forget()
+    if clock_label:
+        clock_label.place_forget()
+    if score_label:
+        score_label.place_forget()
+
+    over_frame = tk.Frame(root, width=WIDTH, height=HEIGHT, bg="black")
+    over_frame.pack(fill="both", expand=True)
+
+    over_label = tk.Label(over_frame, text="GAME OVER", fg="red", bg="black", font=("Courier", 32, "bold"))
+    over_label.pack(pady=60)
+
+    score_display = tk.Label(over_frame, text=f"Score: {score}", fg="cyan", bg="black", font=("Courier", 18))
+    score_display.pack(pady=10)
+
+    time_display = tk.Label(over_frame, text=f"Time Survived: {int(game_time)//60:02}:{int(game_time)%60:02}", fg="white", bg="black", font=("Courier", 18))
+    time_display.pack(pady=10)
+
+    menu_btn = tk.Button(over_frame, text="RETURN TO MENU", font=("Courier", 14), fg="white", bg="black",
+                         activeforeground="white", activebackground="black", highlightthickness=0, bd=0,
+                         command=lambda: [over_frame.destroy(), show_menu()])
+    menu_btn.pack(pady=20)
+
 def update_positions():
-    moving = False
+    global leader_pos, spotlight_pos, yellow_pos, score
     new_x, new_y = leader_pos[0], leader_pos[1]
     leader_speed = LEADER_SPEED
     pressing_into_wall = False
@@ -234,28 +334,30 @@ def update_positions():
     if pressing_into_wall:
         leader_speed = int(LEADER_SPEED * 2)
 
+    # Store old position
+    old_x, old_y = leader_pos[0], leader_pos[1]
+
     if 'w' in keys_pressed:
         test_y = max(leader_pos[1] - leader_speed, CIRCLE_RADIUS)
         if not will_collide(leader_pos[0], test_y):
             new_y = test_y
-        moving = True
     if 's' in keys_pressed:
         test_y = min(leader_pos[1] + leader_speed, HEIGHT - CIRCLE_RADIUS)
         if not will_collide(leader_pos[0], test_y):
             new_y = test_y
-        moving = True
     if 'a' in keys_pressed:
         test_x = max(leader_pos[0] - leader_speed, CIRCLE_RADIUS)
         if not will_collide(test_x, new_y):
             new_x = test_x
-        moving = True
     if 'd' in keys_pressed:
         test_x = min(leader_pos[0] + leader_speed, WIDTH - CIRCLE_RADIUS)
         if not will_collide(test_x, new_y):
             new_x = test_x
-        moving = True
 
     leader_pos[0], leader_pos[1] = new_x, new_y
+
+    # Only move follower if player actually moved
+    moving = (old_x != new_x or old_y != new_y)
 
     if moving:
         dx = leader_pos[0] - spotlight_pos[0]
@@ -265,6 +367,42 @@ def update_positions():
             step = min(FOLLOWER_SPEED, dist)
             spotlight_pos[0] += step * dx / dist
             spotlight_pos[1] += step * dy / dist
+
+    # Only move yellow if player actually moved
+    if moving:
+        dx = leader_pos[0] - yellow_pos[0]
+        dy = leader_pos[1] - yellow_pos[1]
+        dist = math.hypot(dx, dy)
+        if dist > 0:
+            step = min(FOLLOWER_SPEED, dist)
+            # Move in the opposite direction from the leader
+            yellow_pos[0] -= step * dx / dist
+            yellow_pos[1] -= step * dy / dist
+
+        # Teleport yellow to center if it touches the edge
+        if (
+            yellow_pos[0] <= YELLOW_RADIUS or yellow_pos[0] >= WIDTH - YELLOW_RADIUS or
+            yellow_pos[1] <= YELLOW_RADIUS or yellow_pos[1] >= HEIGHT - YELLOW_RADIUS
+        ):
+            yellow_pos[0] = WIDTH // 2
+            yellow_pos[1] = HEIGHT // 2
+
+    check_blob_collision()  # Check for blob pickup
+
+    # --- Yellow ball collection check ---
+    if math.hypot(leader_pos[0] - yellow_pos[0], leader_pos[1] - yellow_pos[1]) <= CIRCLE_RADIUS + YELLOW_RADIUS:
+        score += 10
+        if score_label:
+            score_label.config(text=f"Score: {score}")
+        yellow_pos[:] = get_safe_yellow_spawn()  # respawn yellow ball near player
+
+    # --- Game Over Check ---
+    dx = leader_pos[0] - spotlight_pos[0]
+    dy = leader_pos[1] - spotlight_pos[1]
+    dist = math.hypot(dx, dy)
+    if dist <= CIRCLE_RADIUS * 2:
+        game_over()
+        return
 
     draw_spotlight()
     root.after(FRAME_DELAY, update_positions)
