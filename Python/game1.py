@@ -8,7 +8,7 @@ WIDTH, HEIGHT = 1000, 1000
 CIRCLE_RADIUS = 6
 FRAME_DELAY = 16  # ~60 FPS
 LEADER_SPEED = 4.1
-FOLLOWER_SPEED = 4
+FOLLOWER_SPEED = 3.5
 CELL_SIZE = 79
 WALL_THICKNESS = 7
 GAP_SIZE = 25  # Size of entry hole in thin walls
@@ -282,6 +282,67 @@ def will_collide(x, y):
             return True
     return False
 
+def get_current_username():
+    # Get the last username in the file (current session)
+    if os.path.exists("Python/username.txt"):
+        with open("Python/username.txt", "r") as f:
+            lines = [line.strip() for line in f if line.strip()]
+            if lines:
+                last_line = lines[-1]
+                if ":" in last_line:
+                    return last_line.split(":")[0]
+                return last_line
+    return "Unknown"
+
+def save_score_and_time(username, score, game_time):
+    lines = []
+    if os.path.exists("Python/username.txt"):
+        with open("Python/username.txt", "r") as f:
+            lines = f.readlines()
+    found = False
+    new_lines = []
+    for line in lines:
+        line_strip = line.strip()
+        # Check for the correct username at the start of the line
+        if line_strip.startswith(username + ":"):
+            parts = line_strip.split(":")
+            if len(parts) > 1:
+                games = [g for g in parts[1].split(",") if not g.startswith("game1=") and not g.startswith("game1_time=")]
+                # Get previous score if exists
+                prev_score = 0
+                for g in parts[1].split(","):
+                    if g.startswith("game1="):
+                        try:
+                            prev_score = int(g.split("=")[1])
+                        except ValueError:
+                            prev_score = 0
+                # Only update if new score is higher
+                if score > prev_score:
+                    games.append(f"game1={score}")
+                    games.append(f"game1_time={int(game_time)}")
+                else:
+                    games.append(f"game1={prev_score}")
+                    # Find previous time if exists
+                    prev_time = None
+                    for g in parts[1].split(","):
+                        if g.startswith("game1_time="):
+                            prev_time = g.split("=")[1]
+                    if prev_time is not None:
+                        games.append(f"game1_time={prev_time}")
+                    else:
+                        games.append(f"game1_time={int(game_time)}")
+                new_line = f"{username}:{','.join(games)}\n"
+            else:
+                new_line = f"{username}:game1={score},game1_time={int(game_time)}\n"
+            new_lines.append(new_line)
+            found = True
+        else:
+            new_lines.append(line)
+    if not found:
+        new_lines.append(f"{username}:game1={score},game1_time={int(game_time)}\n")
+    with open("Python/username.txt", "w") as f:
+        f.writelines(new_lines)
+
 def game_over():
     # Remove game canvas and show Game Over screen
     if canvas:
@@ -290,6 +351,10 @@ def game_over():
         clock_label.place_forget()
     if score_label:
         score_label.place_forget()
+
+    # --- Save score and time ---
+    username = get_current_username()
+    save_score_and_time(username, score, game_time)
 
     over_frame = tk.Frame(root, width=WIDTH, height=HEIGHT, bg="black")
     over_frame.pack(fill="both", expand=True)
