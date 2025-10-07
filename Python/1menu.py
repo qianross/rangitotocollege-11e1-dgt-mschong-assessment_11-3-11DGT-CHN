@@ -42,7 +42,8 @@ def ask_username():
 def parse_leaderboard():
     leaderboard = {"game1": [], "game2": [], "game3": []}
     times = {"game1": {}, "game2": {}, "game3": {}}
-    grids = {"game2": {}}  # Add grid size storage for game2
+    grids = {"game2": {}}
+    mines = {"game2": {}}  # Add mines storage for game2
     if os.path.exists("Python/username.txt"):
         with open("Python/username.txt", "r") as f:
             for line in f:
@@ -61,17 +62,16 @@ def parse_leaderboard():
                             leaderboard[game].append((user, int(scores[game])))
                         except ValueError:
                             leaderboard[game].append((user, 0))
-                    # Get time if exists
                     time_key = f"{game}_time"
                     if time_key in scores:
                         times[game][user] = scores[time_key]
-                # Get grid size for game2 if exists
                 if "game2_grid" in scores:
                     grids["game2"][user] = scores["game2_grid"]
-    # Sort each leaderboard by score descending
+                if "game2_mines" in scores:
+                    mines["game2"][user] = scores["game2_mines"]
     for game in leaderboard:
         leaderboard[game].sort(key=lambda x: x[1], reverse=True)
-    return leaderboard, times, grids
+    return leaderboard, times, grids, mines
 
 def open_leaderboard():
     leaderboard_win = tk.Toplevel(root)
@@ -81,14 +81,14 @@ def open_leaderboard():
     notebook = ttk.Notebook(leaderboard_win)
     notebook.pack(fill="both", expand=True)
 
-    leaderboard, times, grids = parse_leaderboard()
+    leaderboard, times, grids, mines = parse_leaderboard()
 
     # Game 1 tab
     frame1 = tk.Frame(notebook)
     notebook.add(frame1, text="Game1")
     tk.Label(frame1, text="Game1 Leaderboard", font=("Arial", 14, "bold")).pack(pady=10)
     if leaderboard["game1"]:
-        for idx, (user, score) in enumerate(leaderboard["game1"][:10], start=1):  # Top 10 only
+        for idx, (user, score) in enumerate(leaderboard["game1"][:10], start=1):
             time_str = times["game1"].get(user, "N/A")
             tk.Label(
                 frame1,
@@ -103,24 +103,24 @@ def open_leaderboard():
     notebook.add(frame2, text="Game2")
     tk.Label(frame2, text="Game2 Leaderboard", font=("Arial", 14, "bold")).pack(pady=10)
     if times["game2"]:
-        # Sort by time ascending (lower is better)
         sorted_times = sorted(times["game2"].items(), key=lambda x: int(x[1]) if x[1].isdigit() else 0)
-        for idx, (user, time_val) in enumerate(sorted_times[:10], start=1):  # Top 10 only
+        for idx, (user, time_val) in enumerate(sorted_times[:10], start=1):
             grid_val = grids["game2"].get(user, "N/A")
+            mines_val = mines["game2"].get(user, "N/A")
             tk.Label(
                 frame2,
-                text=f"{idx}. {user} | time: {time_val} | grid: {grid_val}",
+                text=f"{idx}. {user} | time: {time_val} | grid: {grid_val} | mines: {mines_val}",
                 font=("Arial", 12)
             ).pack(anchor="w", padx=20)
     else:
         tk.Label(frame2, text="No times yet.", font=("Arial", 12)).pack(pady=20)
 
-    # Game 3 tab (default: username and score)
+    # Game 3 tab
     frame3 = tk.Frame(notebook)
     notebook.add(frame3, text="Game3")
     tk.Label(frame3, text="Game3 Leaderboard", font=("Arial", 14, "bold")).pack(pady=10)
     if leaderboard["game3"]:
-        for idx, (user, score) in enumerate(leaderboard["game3"][:10], start=1):  # Top 10 only
+        for idx, (user, score) in enumerate(leaderboard["game3"][:10], start=1):
             tk.Label(
                 frame3,
                 text=f"{idx}. {user} - {score}",
