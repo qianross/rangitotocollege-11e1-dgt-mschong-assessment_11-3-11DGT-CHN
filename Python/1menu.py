@@ -31,6 +31,7 @@ def get_username():
     return None
 
 def ask_username():
+    # Check if username already exists
     name = simpledialog.askstring("Enter Name", "Please enter your name:")
     if name:
         save_username(name)
@@ -40,6 +41,7 @@ def ask_username():
         root.destroy()
 
 def parse_leaderboard():
+    # Parse the username.txt file to extract scores and times
     leaderboard = {"game1": [], "game2": [], "game3": []}
     times = {"game1": {}, "game2": {}, "game3": {}}
     grids = {"game2": {}}
@@ -74,6 +76,7 @@ def parse_leaderboard():
     return leaderboard, times, grids, mines
 
 def open_leaderboard():
+    # Create a new window for the leaderboard
     leaderboard_win = tk.Toplevel(root)
     leaderboard_win.title("Leaderboard")
     leaderboard_win.geometry("400x350")

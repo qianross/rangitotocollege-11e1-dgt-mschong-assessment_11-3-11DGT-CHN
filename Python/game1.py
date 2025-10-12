@@ -31,7 +31,7 @@ blobs = []
 score = 0
 score_label = None
 
-YELLOW_RADIUS = 10
+YELLOW_RADIUS = 12
 yellow_pos = []
 
 def rgb_to_hex(rgb_tuple):
@@ -44,6 +44,7 @@ root.geometry(f"{WIDTH}x{HEIGHT}")
 root.configure(bg="black")
 
 def show_menu():
+    # Create menu frame
     menu_frame = tk.Frame(root, width=WIDTH, height=HEIGHT, bg="black")
     menu_frame.pack(fill="both", expand=True)
 
@@ -54,13 +55,14 @@ def show_menu():
                           activeforeground="white", activebackground="black", highlightthickness=0, bd=0,
                           command=lambda: start_game(menu_frame))
     start_btn.pack(pady=10)
-
+    # Create EXIT button
     exit_btn = tk.Button(menu_frame, text="EXIT", font=("Courier", 14), fg="white", bg="black",
                          activeforeground="white", activebackground="black", highlightthickness=0, bd=0,
                          command=root.destroy)
     exit_btn.pack(pady=10)
 
 def get_safe_blob_spawn():
+    # Spawn blobs away from walls, player start, and other blobs
     while True:
         x = random.randint(BLOB_RADIUS, WIDTH - BLOB_RADIUS)
         y = random.randint(BLOB_RADIUS, HEIGHT - BLOB_RADIUS)
@@ -87,10 +89,11 @@ def draw_blobs():
         )
 
 def check_blob_collision():
+    # Check if leader collides with any blobs
     global score
     for i, (bx, by) in enumerate(blobs):
         if math.hypot(leader_pos[0] - bx, leader_pos[1] - by) <= CIRCLE_RADIUS + BLOB_RADIUS:
-            score += 1
+            score += 1 # Increase score
             if score_label:
                 score_label.config(text=f"Score: {score}")
             # Respawn this blob
@@ -130,8 +133,9 @@ def start_game(menu_frame):
     maze = [[[False, True, True, True, True] for _ in range(GRID_COLS)] for _ in range(GRID_ROWS)]
 
     def carve_maze(x, y):
+        # Carve passages using DFS
         maze[y][x][0] = True
-        directions = [(0, -1, 1, 3), (1, 0, 2, 0), (0, 1, 3, 1), (-1, 0, 0, 2)]
+        directions = [(0, -1, 1, 3), (1, 0, 2, 0), (0, 1, 3, 1), (-1, 0, 0, 2)] # (dx, dy, wall, opposite)
         random.shuffle(directions)
         for dx, dy, wall, opposite in directions:
             nx, ny = x + dx, y + dy
@@ -204,6 +208,7 @@ def start_game(menu_frame):
         canvas.create_rectangle(x1, y1, x2, y2, fill="#000000", outline="", tags="wall")
 
     def get_safe_spawn():
+        # Spawn out of walls
         while True:
             x = random.randint(CIRCLE_RADIUS, WIDTH - CIRCLE_RADIUS)
             y = random.randint(CIRCLE_RADIUS, HEIGHT - CIRCLE_RADIUS)
@@ -242,6 +247,7 @@ def get_safe_yellow_spawn():
     return [x, y]
 
 def draw_yellow():
+    # Draw yellow blob
     canvas.delete("yellow")
     canvas.create_oval(
         yellow_pos[0] - YELLOW_RADIUS, yellow_pos[1] - YELLOW_RADIUS,
@@ -250,6 +256,7 @@ def draw_yellow():
     )
 
 def draw_spotlight():
+    # Draws the leader/player
     cx, cy = int(spotlight_pos[0]), int(spotlight_pos[1])
     r = CIRCLE_RADIUS
 
@@ -277,6 +284,7 @@ def draw_spotlight():
     draw_yellow()  # Draw yellow circle
 
 def will_collide(x, y):
+    # Check if (x, y) collides with any wall
     for x1, y1, x2, y2 in wall_rects:
         if x1 - CIRCLE_RADIUS < x < x2 + CIRCLE_RADIUS and y1 - CIRCLE_RADIUS < y < y2 + CIRCLE_RADIUS:
             return True
@@ -295,6 +303,7 @@ def get_current_username():
     return "Unknown"
 
 def save_score_and_time(username, score, game_time):
+    # Save or update the score and time for the given username
     lines = []
     if os.path.exists("Python/username.txt"):
         with open("Python/username.txt", "r") as f:
@@ -352,7 +361,7 @@ def game_over():
     if score_label:
         score_label.place_forget()
 
-    # --- Save score and time ---
+    # Save score and time
     username = get_current_username()
     save_score_and_time(username, score, game_time)
 
@@ -374,6 +383,7 @@ def game_over():
     menu_btn.pack(pady=20)
 
 def update_positions():
+    # Update positions of leader, spotlight, and yellow blob
     global leader_pos, spotlight_pos, yellow_pos, score
     new_x, new_y = leader_pos[0], leader_pos[1]
     leader_speed = LEADER_SPEED
@@ -454,14 +464,14 @@ def update_positions():
 
     check_blob_collision()  # Check for blob pickup
 
-    # --- Yellow ball collection check ---
+    # Yellow ball collection check
     if math.hypot(leader_pos[0] - yellow_pos[0], leader_pos[1] - yellow_pos[1]) <= CIRCLE_RADIUS + YELLOW_RADIUS:
         score += 10
         if score_label:
             score_label.config(text=f"Score: {score}")
         yellow_pos[:] = get_safe_yellow_spawn()  # respawn yellow ball near player
 
-    # --- Game Over Check ---
+    # Game Over Check
     dx = leader_pos[0] - spotlight_pos[0]
     dy = leader_pos[1] - spotlight_pos[1]
     dist = math.hypot(dx, dy)
@@ -473,6 +483,7 @@ def update_positions():
     root.after(FRAME_DELAY, update_positions)
 
 def update_clock():
+    # Updates the game timer when moving
     global game_time
     if any(k in keys_pressed for k in ['w', 'a', 's', 'd']):
         game_time += FRAME_DELAY / 1000

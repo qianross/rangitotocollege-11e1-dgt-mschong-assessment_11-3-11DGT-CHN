@@ -46,6 +46,7 @@ def calculate_window_and_button_size(grid_size):
     return window_size, btn_px
 
 def save_game2_score(username, score):
+    # Save or update the game2 score for the user
     filename = "Python/username.txt"
     lines = []
     if os.path.exists(filename):
@@ -84,6 +85,7 @@ def save_game2_score(username, score):
         f.writelines(new_lines)
 
 def save_game2_time(username, elapsed_time, grid_size, num_mines):
+    # Save or update the game2 time for the user
     filename = "Python/username.txt"
     lines = []
     if os.path.exists(filename):
@@ -138,6 +140,7 @@ def save_game2_time(username, elapsed_time, grid_size, num_mines):
         f.writelines(new_lines)
 
 def get_game2_score(username):
+    # Retrieve the game2 score for the user
     filename = "Python/username.txt"
     if os.path.exists(filename):
         with open(filename, "r") as f:
@@ -180,13 +183,6 @@ class MineSweeper:
             if widget != self.timer_label:
                 widget.destroy()
 
-        # Remove the welcome label
-        # tk.Label(
-        #     self.master,
-        #     text=f"Welcome, {self.username}! | Wins: {self.score}",
-        #     font=("Arial", 12)
-        # ).pack(pady=5)
-
         self.frame = tk.Frame(self.master)
         self.frame.pack()
 
@@ -226,6 +222,7 @@ class MineSweeper:
             self.master.after(1000, self.update_timer)
 
     def reveal(self, idx):
+        # Ignore if game over or already revealed
         if self.game_over or idx in self.revealed:
             return
         self.revealed.add(idx)
@@ -253,9 +250,11 @@ class MineSweeper:
         return count
 
     def check_win(self):
+        # Check if all non-mine cells are revealed
         return len(self.revealed) == GRID_SIZE * GRID_SIZE - NUM_MINES
 
     def end_game(self, won):
+        # If won, increment score and save time
         self.game_over = True
         self.timer_running = False
         for idx in self.mines:
