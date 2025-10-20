@@ -5,7 +5,7 @@ import subprocess
 import os
 
 def save_username(name):
-    # Only add username if not already present
+    # Only add username if it doesn't already exist
     usernames = []
     if os.path.exists("Python/username.txt"):
         with open("Python/username.txt", "r") as f:
