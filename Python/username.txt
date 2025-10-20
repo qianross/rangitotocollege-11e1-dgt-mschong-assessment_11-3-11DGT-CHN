@@ -1,4 +1,4 @@
 
 qian:,game1=5,game1_time=12
-junk:,game1=21,game1_time=41
-g:,game1=13,game1_time=8,game2_score=1,game2_time=2,game2_grid=2,game2_mines=1
+junk:,game1=21,game1_time=41game2_score=1,game2_time=2,game2_grid=2,game2_mines=1
+g:,game1=13,game1_time=8,game2_score=5,game2_time=2,game2_grid=2,game2_mines=1
