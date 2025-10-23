@@ -4,13 +4,13 @@ import os
 import random
 
 # Constants
-WIDTH, HEIGHT = 1000, 1000
-CIRCLE_RADIUS = 6
+WIDTH, HEIGHT = 1000, 1000 # Window size
+CIRCLE_RADIUS = 6 # Radius of the player
 FRAME_DELAY = 16  # ~60 FPS
-LEADER_SPEED = 4.1
-FOLLOWER_SPEED = 3.5
-CELL_SIZE = 79
-WALL_THICKNESS = 7
+LEADER_SPEED = 4.1 # player speed
+FOLLOWER_SPEED = 3.5 # follower speed
+CELL_SIZE = 79 # Size of maze cells
+WALL_THICKNESS = 7 # Thickness of maze walls
 GAP_SIZE = 25  # Size of entry hole in thin walls
 
 # Global variables
@@ -18,11 +18,11 @@ canvas = None
 bg_img = None
 spotlight_src = None
 spotlight_img = None
-leader_pos = []
-spotlight_pos = []
+leader_pos = [WIDTH // 2, HEIGHT // 2]
+spotlight_pos = [WIDTH // 2, HEIGHT // 2]
 keys_pressed = set()
 clock_label = None
-game_time = 0
+game_time = 0.0
 wall_rects = []
 
 NUM_BLOBS = 4
@@ -32,7 +32,7 @@ score = 0
 score_label = None
 
 YELLOW_RADIUS = 12
-yellow_pos = []
+yellow_pos = [WIDTH // 2, HEIGHT // 2]
 
 def rgb_to_hex(rgb_tuple):
     return "#%02x%02x%02x" % rgb_tuple
@@ -93,7 +93,7 @@ def check_blob_collision():
     global score
     for i, (bx, by) in enumerate(blobs):
         if math.hypot(leader_pos[0] - bx, leader_pos[1] - by) <= CIRCLE_RADIUS + BLOB_RADIUS:
-            score += 1 # Increase score
+            score += 1  # Increase score
             if score_label:
                 score_label.config(text=f"Score: {score}")
             # Respawn this blob
@@ -103,7 +103,7 @@ def start_game(menu_frame):
     menu_frame.destroy()
 
     global canvas, bg_img, spotlight_src, spotlight_img, leader_pos, spotlight_pos, clock_label, game_time, wall_rects, score, score_label, yellow_pos
-    game_time = 0
+    game_time = 0.0
     wall_rects.clear()
     score = 0
 
@@ -133,9 +133,8 @@ def start_game(menu_frame):
     maze = [[[False, True, True, True, True] for _ in range(GRID_COLS)] for _ in range(GRID_ROWS)]
 
     def carve_maze(x, y):
-        # Carve passages using DFS
         maze[y][x][0] = True
-        directions = [(0, -1, 1, 3), (1, 0, 2, 0), (0, 1, 3, 1), (-1, 0, 0, 2)] # (dx, dy, wall, opposite)
+        directions = [(0, -1, 1, 3), (1, 0, 2, 0), (0, 1, 3, 1), (-1, 0, 0, 2)]  # (dx, dy, wall, opposite)
         random.shuffle(directions)
         for dx, dy, wall, opposite in directions:
             nx, ny = x + dx, y + dy
@@ -148,14 +147,7 @@ def start_game(menu_frame):
     start_y = random.randint(0, GRID_ROWS - 1)
     carve_maze(start_x, start_y)
 
-    for row in range(GRID_ROWS):
-        for col in range(GRID_COLS):
-            x1 = col * CELL_SIZE
-            y1 = row * CELL_SIZE
-            x2 = x1 + CELL_SIZE
-            y2 = y1 + CELL_SIZE
-            _, top, right, bottom, left = maze[row][col]
-
+    # Build wall rectangles from maze
     for row in range(GRID_ROWS):
         for col in range(GRID_COLS):
             x1 = col * CELL_SIZE
@@ -215,12 +207,13 @@ def start_game(menu_frame):
             if not will_collide(x, y):
                 return [x, y]
 
-    leader_pos = get_safe_spawn()
-    spotlight_pos = get_safe_spawn()
+    # position player and follower
+    leader_pos[:] = get_safe_spawn()
+    spotlight_pos[:] = get_safe_spawn()
 
     spawn_blobs()  # Spawn blobs at game start
 
-    yellow_pos = get_safe_yellow_spawn()
+    yellow_pos[:] = get_safe_yellow_spawn()
 
     clock_label = tk.Label(root, text="00:00", font=("Courier", 14), fg="white", bg="black")
     clock_label.place(x=10, y=10)
@@ -290,11 +283,11 @@ def will_collide(x, y):
             return True
     return False
 
-def get_current_username():
+def get_username():
     # Prefer active player from Python/name.txt
-    name_path = os.path.join("Python", "name.txt")
-    if os.path.exists(name_path):
-        with open(name_path, "r", encoding="utf-8") as f:
+    NAME_FILE = os.path.join("Python", "name.txt")
+    if os.path.exists(NAME_FILE):
+        with open(NAME_FILE, "r", encoding="utf-8") as f:
             for line in f:
                 ln = line.strip()
                 if ln:
@@ -312,12 +305,6 @@ def get_current_username():
     return "Guest"
 
 def save_score_and_time(username, score, game_time):
-    """
-    Update only game1/game1_time fields for the given username in username.txt.
-    Preserve any other key=value pairs on that user's line.
-    If the user exists, update game1 only if new score > previous game1 score.
-    If the user does not exist, append a new line with game1 and game1_time.
-    """
     script_dir = os.path.dirname(os.path.abspath(__file__))
     filename = os.path.join(script_dir, "username.txt")
 
@@ -373,6 +360,7 @@ def save_score_and_time(username, score, game_time):
 
 def game_over():
     # Remove game canvas and show Game Over screen
+    global canvas, clock_label, score_label
     if canvas:
         canvas.pack_forget()
     if clock_label:
@@ -381,7 +369,7 @@ def game_over():
         score_label.place_forget()
 
     # Save score and time
-    username = get_current_username()
+    username = get_username()
     save_score_and_time(username, score, game_time)
 
     over_frame = tk.Frame(root, width=WIDTH, height=HEIGHT, bg="black")
@@ -403,7 +391,7 @@ def game_over():
 
 def update_positions():
     # Update positions of leader, spotlight, and yellow blob
-    global leader_pos, spotlight_pos, yellow_pos, score
+    global leader_pos, spotlight_pos, yellow_pos, score, game_time
     new_x, new_y = leader_pos[0], leader_pos[1]
     leader_speed = LEADER_SPEED
     pressing_into_wall = False
@@ -505,11 +493,12 @@ def update_clock():
     # Updates the game timer when moving
     global game_time
     if any(k in keys_pressed for k in ['w', 'a', 's', 'd']):
-        game_time += FRAME_DELAY / 1000
+        game_time += FRAME_DELAY / 1000.0
 
     minutes = int(game_time) // 60
     seconds = int(game_time) % 60
-    clock_label.config(text=f"{minutes:02}:{seconds:02}")
+    if clock_label:
+        clock_label.config(text=f"{minutes:02}:{seconds:02}")
     root.after(FRAME_DELAY, update_clock)
 
 def on_key_press(event):

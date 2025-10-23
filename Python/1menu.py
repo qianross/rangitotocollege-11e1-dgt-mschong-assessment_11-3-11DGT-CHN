@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import simpledialog, messagebox
+from tkinter import messagebox
 from tkinter import ttk
 import subprocess
 import os
@@ -55,21 +55,6 @@ def get_username():
                 return last_line
     return None
 
-def ask_username():
-    # Check if username already exists
-    name = simpledialog.askstring("Enter Name", "Please enter your name:")
-    if name:
-        save_username(name)
-        # ensure Python folder exists and overwrite name.txt with the username
-        os.makedirs("Python", exist_ok=True)
-        name_path = os.path.join("Python", "name.txt")
-        with open(name_path, "w", encoding="utf-8") as nf:
-            nf.write(name + "\n")
-        return name
-    else:
-        messagebox.showerror("Error", "Name is required!")
-        root.destroy()
-
 def parse_leaderboard():
     # Parse the username.txt file to extract scores and times
     leaderboard = {"game1": [], "game2": [], "game3": []}
@@ -118,8 +103,8 @@ def open_leaderboard():
 
     # Game 1 tab
     frame1 = tk.Frame(notebook)
-    notebook.add(frame1, text="Game1")
-    tk.Label(frame1, text="Game1 Leaderboard", font=("Arial", 14, "bold")).pack(pady=10)
+    notebook.add(frame1, text="Blinding Fear")
+    tk.Label(frame1, text="Blinding Fear Leaderboard", font=("Arial", 14, "bold")).pack(pady=10)
     if leaderboard["game1"]:
         for idx, (user, score) in enumerate(leaderboard["game1"][:10], start=1):
             time_str = times["game1"].get(user, "N/A")
@@ -133,8 +118,8 @@ def open_leaderboard():
 
     # Game 2 tab
     frame2 = tk.Frame(notebook)
-    notebook.add(frame2, text="Game2")
-    tk.Label(frame2, text="Game2 Leaderboard", font=("Arial", 14, "bold")).pack(pady=10)
+    notebook.add(frame2, text="Minesweeper")
+    tk.Label(frame2, text="Minesweeper Leaderboard", font=("Arial", 14, "bold")).pack(pady=10)
     if times["game2"]:
         sorted_times = sorted(times["game2"].items(), key=lambda x: int(x[1]) if x[1].isdigit() else 0)
         for idx, (user, time_val) in enumerate(sorted_times[:10], start=1):
@@ -150,8 +135,8 @@ def open_leaderboard():
 
     # Game 3 tab
     frame3 = tk.Frame(notebook)
-    notebook.add(frame3, text="Game3")
-    tk.Label(frame3, text="Game3 Leaderboard", font=("Arial", 14, "bold")).pack(pady=10)
+    notebook.add(frame3, text="Snake")
+    tk.Label(frame3, text="Snake Leaderboard", font=("Arial", 14, "bold")).pack(pady=10)
     if leaderboard["game3"]:
         for idx, (user, score) in enumerate(leaderboard["game3"][:10], start=1):
             time_str = times["game3"].get(user, "N/A")
@@ -166,27 +151,60 @@ def open_leaderboard():
 def launch_game(filename):
     subprocess.Popen(["python", filename])
 
+# --- New startup flow: entry screen before showing main menu ---
 root = tk.Tk()
 root.title("Main Menu")
 root.geometry("400x300")
 
-username = ask_username()
+def write_active_name(name):
+    os.makedirs("Python", exist_ok=True)
+    name_path = os.path.join("Python", "name.txt")
+    with open(name_path, "w", encoding="utf-8") as nf:
+        nf.write(name + "\n")
 
-tk.Label(root, text=f"Welcome, {username}!", font=("Arial", 16)).pack(pady=10)
+def show_main_menu(username):
+    # Clear any existing widgets in root
+    for w in root.winfo_children():
+        w.destroy()
 
-frame = tk.Frame(root)
-frame.pack(pady=30)
+    tk.Label(root, text=f"Welcome, {username}!", font=("Arial", 16)).pack(pady=10)
 
-btn1 = tk.Button(frame, text="Leaderboard", width=20, height=3, command=open_leaderboard)
-btn1.grid(row=0, column=0, padx=10, pady=10)
+    frame = tk.Frame(root)
+    frame.pack(pady=30)
 
-btn2 = tk.Button(frame, text="Game 1", width=20, height=3, command=lambda: launch_game("Python\game1.py"))
-btn2.grid(row=0, column=1, padx=10, pady=10)
+    btn1 = tk.Button(frame, text="Leaderboard", width=20, height=3, command=open_leaderboard)
+    btn1.grid(row=0, column=0, padx=10, pady=10)
 
-btn3 = tk.Button(frame, text="Game 2", width=20, height=3, command=lambda: launch_game("Python\game2.py"))
-btn3.grid(row=1, column=0, padx=10, pady=10)
+    btn2 = tk.Button(frame, text="Blinding Fear", width=20, height=3, command=lambda: launch_game("Python\\game1.py"))
+    btn2.grid(row=0, column=1, padx=10, pady=10)
 
-btn4 = tk.Button(frame, text="Game 3", width=20, height=3, command=lambda: launch_game("Python\game3.py"))
-btn4.grid(row=1, column=1, padx=10, pady=10)
+    btn3 = tk.Button(frame, text="Minesweeper", width=20, height=3, command=lambda: launch_game("Python\\game2.py"))
+    btn3.grid(row=1, column=0, padx=10, pady=10)
+
+    btn4 = tk.Button(frame, text="Snake", width=20, height=3, command=lambda: launch_game("Python\\game3.py"))
+    btn4.grid(row=1, column=1, padx=10, pady=10)
+
+def on_start_continue(entry_widget):
+    name = entry_widget.get().strip()
+    if not name:
+        messagebox.showerror("Error", "Please enter a name.")
+        return
+    save_username(name)
+    write_active_name(name)
+    show_main_menu(name)
+
+# Build initial "enter name" screen (no separate popup)
+start_frame = tk.Frame(root)
+start_frame.pack(fill="both", expand=True)
+
+tk.Label(start_frame, text="Enter your name", font=("Arial", 16)).pack(pady=12)
+name_var = tk.StringVar(value=get_username() or "")
+name_entry = tk.Entry(start_frame, textvariable=name_var, font=("Arial", 12))
+name_entry.pack(pady=6)
+
+btn_frame = tk.Frame(start_frame)
+btn_frame.pack(pady=10)
+tk.Button(btn_frame, text="Continue", width=12, command=lambda: on_start_continue(name_entry)).grid(row=0, column=0, padx=6)
+tk.Button(btn_frame, text="Exit", width=12, command=root.destroy).grid(row=0, column=1, padx=6)
 
 root.mainloop()
