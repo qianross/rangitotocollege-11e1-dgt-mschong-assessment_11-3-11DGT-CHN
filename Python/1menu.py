@@ -5,18 +5,43 @@ import subprocess
 import os
 
 def save_username(name):
-    # Only add username if it doesn't already exist
+    """Safely add a username line; preserve other lines and avoid corrupting separators."""
+    os.makedirs("Python", exist_ok=True)
+    path = os.path.join("Python", "username.txt")
+
+    # Read existing lines, normalize them (strip stray leading slashes and CR/LF)
+    lines = []
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            for ln in f:
+                s = ln.rstrip("\r\n")
+                if s:
+                    # remove accidental leading slashes/backslashes that may have been added
+                    s = s.lstrip("/\\")
+                lines.append(s)
+
+    # Build set of existing usernames
     usernames = []
-    if os.path.exists("Python/username.txt"):
-        with open("Python/username.txt", "r") as f:
-            for line in f:
-                if ":" in line:
-                    usernames.append(line.split(":")[0].strip())
-                else:
-                    usernames.append(line.strip())
-    if name not in usernames:
-        with open("Python/username.txt", "a") as f:
-            f.write(f"{name}:\n")
+    for ln in lines:
+        if ":" in ln:
+            usernames.append(ln.split(":", 1)[0].strip())
+        else:
+            usernames.append(ln.strip())
+
+    # If name already present do nothing (but also rewrite normalized file to remove stray slashes)
+    if name in usernames:
+        # rewrite normalized file to remove any stray leading slashes
+        with open(path, "w", encoding="utf-8") as f:
+            for ln in lines:
+                if ln:
+                    f.write(ln + "\n")
+        return
+
+    # Ensure last line ends with newline before appending
+    with open(path, "a", encoding="utf-8") as f:
+        if lines and not lines[-1].endswith("\n"):
+            f.write("\n")
+        f.write(f"{name}:\n")
 
 def get_username():
     # Return the last entered username (current session)
@@ -35,6 +60,11 @@ def ask_username():
     name = simpledialog.askstring("Enter Name", "Please enter your name:")
     if name:
         save_username(name)
+        # ensure Python folder exists and overwrite name.txt with the username
+        os.makedirs("Python", exist_ok=True)
+        name_path = os.path.join("Python", "name.txt")
+        with open(name_path, "w", encoding="utf-8") as nf:
+            nf.write(name + "\n")
         return name
     else:
         messagebox.showerror("Error", "Name is required!")
@@ -124,9 +154,10 @@ def open_leaderboard():
     tk.Label(frame3, text="Game3 Leaderboard", font=("Arial", 14, "bold")).pack(pady=10)
     if leaderboard["game3"]:
         for idx, (user, score) in enumerate(leaderboard["game3"][:10], start=1):
+            time_str = times["game3"].get(user, "N/A")
             tk.Label(
                 frame3,
-                text=f"{idx}. {user} - {score}",
+                text=f"{idx}. {user} | score: {score} | time: {time_str}",
                 font=("Arial", 12)
             ).pack(anchor="w", padx=20)
     else:

@@ -291,65 +291,84 @@ def will_collide(x, y):
     return False
 
 def get_current_username():
-    # Get the last username in the file (current session)
-    if os.path.exists("Python/username.txt"):
-        with open("Python/username.txt", "r") as f:
-            lines = [line.strip() for line in f if line.strip()]
+    # Prefer active player from Python/name.txt
+    name_path = os.path.join("Python", "name.txt")
+    if os.path.exists(name_path):
+        with open(name_path, "r", encoding="utf-8") as f:
+            for line in f:
+                ln = line.strip()
+                if ln:
+                    return ln
+    # Fallback to last entry in Python/username.txt if present
+    filename = os.path.join("Python", "username.txt")
+    if os.path.exists(filename):
+        with open(filename, "r", encoding="utf-8") as f:
+            lines = [l.strip() for l in f if l.strip()]
             if lines:
-                last_line = lines[-1]
-                if ":" in last_line:
-                    return last_line.split(":")[0]
-                return last_line
-    return "Unknown"
+                last = lines[-1]
+                if ":" in last:
+                    return last.split(":", 1)[0].strip()
+                return last
+    return "Guest"
 
 def save_score_and_time(username, score, game_time):
-    # Save or update the score and time for the given username
+    """
+    Update only game1/game1_time fields for the given username in username.txt.
+    Preserve any other key=value pairs on that user's line.
+    If the user exists, update game1 only if new score > previous game1 score.
+    If the user does not exist, append a new line with game1 and game1_time.
+    """
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    filename = os.path.join(script_dir, "username.txt")
+
     lines = []
-    if os.path.exists("Python/username.txt"):
-        with open("Python/username.txt", "r") as f:
-            lines = f.readlines()
+    if os.path.exists(filename):
+        with open(filename, "r", encoding="utf-8") as f:
+            lines = [ln.rstrip("\n") for ln in f.readlines()]
+
     found = False
     new_lines = []
     for line in lines:
         line_strip = line.strip()
-        # Check for the correct username at the start of the line
+        if not line_strip:
+            continue
         if line_strip.startswith(username + ":"):
-            parts = line_strip.split(":")
-            if len(parts) > 1:
-                games = [g for g in parts[1].split(",") if not g.startswith("game1=") and not g.startswith("game1_time=")]
-                # Get previous score if exists
+            # parse existing key=val pairs into dict
+            existing = {}
+            parts = line_strip.split(":", 1)
+            if len(parts) > 1 and parts[1].strip():
+                for part in parts[1].split(","):
+                    if "=" in part:
+                        k, v = part.split("=", 1)
+                        existing[k.strip()] = v.strip()
+            # previous score (default 0)
+            try:
+                prev_score = int(existing.get("game1", "0"))
+            except ValueError:
                 prev_score = 0
-                for g in parts[1].split(","):
-                    if g.startswith("game1="):
-                        try:
-                            prev_score = int(g.split("=")[1])
-                        except ValueError:
-                            prev_score = 0
-                # Only update if new score is higher
-                if score > prev_score:
-                    games.append(f"game1={score}")
-                    games.append(f"game1_time={int(game_time)}")
-                else:
-                    games.append(f"game1={prev_score}")
-                    # Find previous time if exists
-                    prev_time = None
-                    for g in parts[1].split(","):
-                        if g.startswith("game1_time="):
-                            prev_time = g.split("=")[1]
-                    if prev_time is not None:
-                        games.append(f"game1_time={prev_time}")
-                    else:
-                        games.append(f"game1_time={int(game_time)}")
-                new_line = f"{username}:{','.join(games)}\n"
+
+            # decide whether to update game1 fields
+            if score > prev_score:
+                existing["game1"] = str(int(score))
+                existing["game1_time"] = str(int(game_time))
             else:
-                new_line = f"{username}:game1={score},game1_time={int(game_time)}\n"
-            new_lines.append(new_line)
+                # keep existing game1 and game1_time if present, otherwise set time to current if missing
+                if "game1" not in existing:
+                    existing["game1"] = str(int(prev_score))
+                if "game1_time" not in existing:
+                    existing["game1_time"] = str(int(game_time))
+
+            # rebuild the user's line preserving other keys
+            rest = ",".join(f"{k}={v}" for k, v in existing.items())
+            new_lines.append(f"{username}:{rest}\n")
             found = True
         else:
-            new_lines.append(line)
+            new_lines.append(line + ("\n" if not line.endswith("\n") else ""))
     if not found:
-        new_lines.append(f"{username}:game1={score},game1_time={int(game_time)}\n")
-    with open("Python/username.txt", "w") as f:
+        new_lines.append(f"{username}:game1={int(score)},game1_time={int(game_time)}\n")
+
+    os.makedirs(script_dir, exist_ok=True)
+    with open(filename, "w", encoding="utf-8") as f:
         f.writelines(new_lines)
 
 def game_over():

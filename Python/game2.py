@@ -23,9 +23,18 @@ def get_game_settings():
 GRID_SIZE, NUM_MINES = get_game_settings()
 
 def get_username():
+    # First try active player written by the main menu to Python/name.txt
+    name_path = os.path.join("Python", "name.txt")
+    if os.path.exists(name_path):
+        with open(name_path, "r", encoding="utf-8") as f:
+            for line in f:
+                ln = line.strip()
+                if ln:
+                    return ln
+    # fallback to previous username.txt behavior
     filename = "Python/username.txt"
     if os.path.exists(filename):
-        with open(filename, "r") as f:
+        with open(filename, "r", encoding="utf-8") as f:
             lines = [line.strip() for line in f if line.strip()]
             if lines:
                 last_line = lines[-1]
@@ -46,97 +55,117 @@ def calculate_window_and_button_size(grid_size):
     return window_size, btn_px
 
 def save_game2_score(username, score):
-    # Save or update the game2 score for the user
-    filename = "Python/username.txt"
+    """
+    Update only the game2_score field for the given username in username.txt.
+    Preserve all other key=value pairs on that user's line.
+    Only replace if new score > previous saved game2_score. If user not present, append.
+    """
+    filename = os.path.join(os.path.dirname(__file__), "username.txt")
     lines = []
     if os.path.exists(filename):
-        with open(filename, "r") as f:
-            lines = f.readlines()
+        with open(filename, "r", encoding="utf-8") as f:
+            lines = [ln.rstrip("\n") for ln in f.readlines()]
+
     found = False
     new_lines = []
     for line in lines:
         line_strip = line.strip()
+        if not line_strip:
+            continue
         if line_strip.startswith(username + ":"):
-            parts = line_strip.split(":")
-            if len(parts) > 1:
-                games = [g for g in parts[1].split(",") if not g.startswith("game2_score=")]
+            # parse existing key=val pairs into dict
+            existing = {}
+            parts = line_strip.split(":", 1)
+            if len(parts) > 1 and parts[1].strip():
+                for part in parts[1].split(","):
+                    if "=" in part:
+                        k, v = part.split("=", 1)
+                        existing[k.strip()] = v.strip()
+            try:
+                prev_score = int(existing.get("game2_score", "0"))
+            except ValueError:
                 prev_score = 0
-                for g in parts[1].split(","):
-                    if g.startswith("game2_score="):
-                        try:
-                            prev_score = int(g.split("=")[1])
-                        except ValueError:
-                            prev_score = 0
-                # Only update if new score is higher
-                if score > prev_score:
-                    games.append(f"game2_score={score}")
-                else:
-                    games.append(f"game2_score={prev_score}")
-                new_line = f"{username}:{','.join(games)}\n"
+
+            if score > prev_score:
+                existing["game2_score"] = str(int(score))
             else:
-                new_line = f"{username}:game2_score={score}\n"
-            new_lines.append(new_line)
+                # keep previous score as-is
+                existing["game2_score"] = str(prev_score)
+
+            # rebuild line preserving other keys
+            rest = ",".join(f"{k}={v}" for k, v in existing.items())
+            new_lines.append(f"{username}:{rest}\n")
             found = True
         else:
-            new_lines.append(line)
+            new_lines.append(line + ("\n" if not line.endswith("\n") else ""))
+
     if not found:
-        new_lines.append(f"{username}:game2_score={score}\n")
-    with open(filename, "w") as f:
+        new_lines.append(f"{username}:game2_score={int(score)}\n")
+
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    with open(filename, "w", encoding="utf-8") as f:
         f.writelines(new_lines)
 
+
 def save_game2_time(username, elapsed_time, grid_size, num_mines):
-    # Save or update the game2 time for the user
-    filename = "Python/username.txt"
+    """
+    Update only game2_time, game2_grid, game2_mines fields for the given username.
+    Preserve other key=value pairs. Replace (or set) these fields only if new time is lower (better)
+    than existing game2_time, or if there is no existing time. If user not present, append.
+    """
+    filename = os.path.join(os.path.dirname(__file__), "username.txt")
     lines = []
     if os.path.exists(filename):
-        with open(filename, "r") as f:
-            lines = f.readlines()
+        with open(filename, "r", encoding="utf-8") as f:
+            lines = [ln.rstrip("\n") for ln in f.readlines()]
+
     found = False
     new_lines = []
     for line in lines:
         line_strip = line.strip()
+        if not line_strip:
+            continue
         if line_strip.startswith(username + ":"):
-            parts = line_strip.split(":")
-            if len(parts) > 1:
-                games = [g for g in parts[1].split(",") if not g.startswith("game2_time=") and not g.startswith("game2_grid=") and not g.startswith("game2_mines=")]
+            # parse existing key=val pairs into dict
+            existing = {}
+            parts = line_strip.split(":", 1)
+            if len(parts) > 1 and parts[1].strip():
+                for part in parts[1].split(","):
+                    if "=" in part:
+                        k, v = part.split("=", 1)
+                        existing[k.strip()] = v.strip()
+
+            prev_time = None
+            try:
+                if "game2_time" in existing:
+                    prev_time = int(existing["game2_time"])
+            except ValueError:
                 prev_time = None
-                for g in parts[1].split(","):
-                    if g.startswith("game2_time="):
-                        try:
-                            prev_time = int(g.split("=")[1])
-                        except ValueError:
-                            prev_time = None
-                # Only update if new time is better (lower)
-                if prev_time is None or elapsed_time < prev_time:
-                    games.append(f"game2_time={elapsed_time}")
-                    games.append(f"game2_grid={grid_size}")
-                    games.append(f"game2_mines={num_mines}")
-                else:
-                    games.append(f"game2_time={prev_time}")
-                    # Find previous grid size if exists
-                    prev_grid = None
-                    for g in parts[1].split(","):
-                        if g.startswith("game2_grid="):
-                            prev_grid = g.split("=")[1]
-                    if prev_grid is not None:
-                        games.append(f"game2_grid={prev_grid}")
-                    # Find previous mines if exists
-                    prev_mines = None
-                    for g in parts[1].split(","):
-                        if g.startswith("game2_mines="):
-                            prev_mines = g.split("=")[1]
-                    if prev_mines is not None:
-                        games.append(f"game2_mines={prev_mines}")
-                new_line = f"{username}:{','.join(games)}\n"
+
+            if prev_time is None or int(elapsed_time) < prev_time:
+                existing["game2_time"] = str(int(elapsed_time))
+                existing["game2_grid"] = str(int(grid_size))
+                existing["game2_mines"] = str(int(num_mines))
             else:
-                new_line = f"{username}:game2_time={elapsed_time},game2_grid={grid_size},game2_mines={num_mines}\n"
-            new_lines.append(new_line)
+                # keep existing time/grid/mines (or set grid/mines if missing)
+                if "game2_grid" not in existing:
+                    existing["game2_grid"] = str(int(grid_size))
+                if "game2_mines" not in existing:
+                    existing["game2_mines"] = str(int(num_mines))
+                existing["game2_time"] = str(int(prev_time)) if prev_time is not None else str(int(elapsed_time))
+
+            # rebuild line preserving other keys
+            rest = ",".join(f"{k}={v}" for k, v in existing.items())
+            new_lines.append(f"{username}:{rest}\n")
             found = True
         else:
-            new_lines.append(line)
+            new_lines.append(line + ("\n" if not line.endswith("\n") else ""))
+
     if not found:
-        new_lines.append(f"{username}:game2_time={elapsed_time},game2_grid={grid_size},game2_mines={num_mines}\n")
-    with open(filename, "w") as f:
+        new_lines.append(f"{username}:game2_time={int(elapsed_time)},game2_grid={int(grid_size)},game2_mines={int(num_mines)}\n")
+
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    with open(filename, "w", encoding="utf-8") as f:
         f.writelines(new_lines)
 
 def get_game2_score(username):
@@ -161,7 +190,7 @@ class MineSweeper:
     def __init__(self, master, username):
         self.master = master
         self.username = username
-        self.score = get_game2_score(username)  # <-- FIXED
+        self.score = get_game2_score(username)
         self.window_size, self.btn_px = calculate_window_and_button_size(GRID_SIZE)
         # Increase window height for timer/buttons
         self.master.geometry(f"{self.window_size}x{self.window_size+150}")
@@ -261,7 +290,7 @@ class MineSweeper:
             self.buttons[idx].config(text="💣", bg="red")
         if won:
             self.score += 1
-            save_game2_score(self.username, self.score)  # <-- FIXED
+            save_game2_score(self.username, self.score)
             save_game2_time(self.username, self.elapsed_time, GRID_SIZE, NUM_MINES)
             tk.messagebox.showinfo("Mine Sweeper", f"You win!\nTime: {self.elapsed_time}s")
         else:
