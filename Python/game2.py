@@ -9,7 +9,7 @@ NAME_FILE = os.path.join(BASE_DIR, "name.txt")
 USERNAME_FILE = os.path.join(BASE_DIR, "username.txt")
 
 def get_game_settings():
-    # Modal dialogs to get grid and mine count
+    # ask user for grid size and mines
     root = tk.Tk()
     root.withdraw()
     grid_size = simpledialog.askinteger("Grid Size", "Enter grid size (e.g. 10):", minvalue=2, maxvalue=20)
@@ -29,7 +29,7 @@ def get_game_settings():
 GRID_SIZE, NUM_MINES = get_game_settings()
 
 def get_username():
-    # Prefer active player from Python/name.txt then fallback to last entry in username.txt
+    # return active name from name.txt or last username entry
     if os.path.exists(NAME_FILE):
         with open(NAME_FILE, "r", encoding="utf-8") as f:
             for line in f:
@@ -47,6 +47,7 @@ def get_username():
     return "guest"
 
 def calculate_window_and_button_size(grid_size):
+    # pick window size and button px based on grid size
     default_btn_px = 40
     window_size = grid_size * default_btn_px
     if window_size > 1000:
@@ -56,19 +57,22 @@ def calculate_window_and_button_size(grid_size):
         btn_px = default_btn_px
     return window_size, btn_px
 
-# Helper utilities for username.txt
+# file helpers for username.txt
 def read_user_lines():
+    # read username file lines, return list
     if not os.path.exists(USERNAME_FILE):
         return []
     with open(USERNAME_FILE, "r", encoding="utf-8") as f:
         return [ln.rstrip("\n") for ln in f.readlines()]
 
 def write_user_lines(lines):
+    # write normalized lines back to file
     os.makedirs(BASE_DIR, exist_ok=True)
     with open(USERNAME_FILE, "w", encoding="utf-8") as f:
         f.writelines(line if line.endswith("\n") else line + "\n" for line in lines)
 
 def parse_pairs(rest):
+    # parse comma separated k=v pairs into dict
     pairs = {}
     for part in rest.split(","):
         if "=" in part:
@@ -77,7 +81,7 @@ def parse_pairs(rest):
     return pairs
 
 def save_game2_score(username, score):
-    # Update only game2_score for username.
+    # update only game2_score for user, keep other keys
     lines = read_user_lines()
     found = False
     out = []
@@ -106,7 +110,7 @@ def save_game2_score(username, score):
     write_user_lines(out)
 
 def save_game2_time(username, elapsed_time, grid_size, num_mines):
-    # Update only game2_time, game2_grid, game2_mines for username.
+    # update best time, grid, mines for game2 (lower time is better)
     lines = read_user_lines()
     found = False
     out = []
@@ -129,7 +133,7 @@ def save_game2_time(username, elapsed_time, grid_size, num_mines):
                 existing["game2_grid"] = str(int(grid_size))
                 existing["game2_mines"] = str(int(num_mines))
             else:
-                # ensure grid/mines present
+                # keep old time, but make sure grid/mines exist
                 existing.setdefault("game2_grid", str(int(grid_size)))
                 existing.setdefault("game2_mines", str(int(num_mines)))
                 existing["game2_time"] = str(int(prev_time)) if prev_time is not None else str(int(elapsed_time))
@@ -142,6 +146,7 @@ def save_game2_time(username, elapsed_time, grid_size, num_mines):
     write_user_lines(out)
 
 def get_game2_score(username):
+    # read saved game2_score for username, return 0 if not found
     if os.path.exists(USERNAME_FILE):
         with open(USERNAME_FILE, "r", encoding="utf-8") as f:
             for line in f:
@@ -159,6 +164,7 @@ def get_game2_score(username):
 
 class MineSweeper:
     def __init__(self, master, username):
+        # setup UI and state
         self.master = master
         self.username = username
         self.score = get_game2_score(username)
@@ -172,6 +178,7 @@ class MineSweeper:
         self.reset_game()
 
     def reset_game(self):
+        # create grid buttons and mines
         self.buttons = {}
         self.mines = set(random.sample(range(GRID_SIZE * GRID_SIZE), NUM_MINES))
         self.revealed = set()
@@ -206,12 +213,14 @@ class MineSweeper:
         self.update_timer()
 
     def update_timer(self):
+        # update elapsed time label
         if self.timer_running:
             self.elapsed_time = int(time.time() - self.start_time)
             self.timer_label.config(text=f"Time: {self.elapsed_time}s")
             self.master.after(1000, self.update_timer)
 
     def reveal(self, idx):
+        # reveal a cell, end game on mine
         if self.game_over or idx in self.revealed:
             return
         self.revealed.add(idx)
@@ -226,6 +235,7 @@ class MineSweeper:
                 self.end_game(True)
 
     def count_adjacent_mines(self, idx):
+        # count mines around a cell
         r, c = divmod(idx, GRID_SIZE)
         count = 0
         for dr in (-1, 0, 1):
@@ -239,9 +249,11 @@ class MineSweeper:
         return count
 
     def check_win(self):
+        # win if all non-mine cells revealed
         return len(self.revealed) == GRID_SIZE * GRID_SIZE - NUM_MINES
 
     def end_game(self, won):
+        # show bombs and save results if win
         self.game_over = True
         self.timer_running = False
         for idx in self.mines:

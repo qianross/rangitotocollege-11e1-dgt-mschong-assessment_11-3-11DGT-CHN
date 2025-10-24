@@ -17,26 +17,31 @@ HEIGHT = CELL * ROWS
 UPDATE_MS = 120
 
 def read_user_lines():
+    # return list of non-empty lines from username file
     if not os.path.exists(USERNAME_FILE):
         return []
     with open(USERNAME_FILE, "r", encoding="utf-8") as f:
         return [line.rstrip("\n") for line in f if line.strip()]
 
 def write_user_lines(lines):
+    # write lines back, make sure file and newline are ok
     os.makedirs(BASE_DIR, exist_ok=True)
     with open(USERNAME_FILE, "w", encoding="utf-8") as f:
         f.write("\n".join(lines) + ("\n" if lines else ""))
 
 def get_username():
+    # try name.txt first, return first non-empty line
     if os.path.exists(NAME_FILE):
         with open(NAME_FILE, "r", encoding="utf-8") as nf:
             for line in nf:
                 ln = line.strip()
                 if ln:
                     return ln
+    # none found -> return empty
     return ""
 
 def ensure_user_exists(name):
+    # add "name:" line if it's missing
     lines = read_user_lines()
     for line in lines:
         if ":" in line and line.split(":", 1)[0].strip() == name:
@@ -45,7 +50,7 @@ def ensure_user_exists(name):
     write_user_lines(lines)
 
 def update_game3_score(name, score, time_seconds):
-
+    # update only game3 and game3_time for the user
     lines = read_user_lines()
     found = False
     out = []
@@ -70,7 +75,7 @@ def update_game3_score(name, score, time_seconds):
                 existing["game3"] = str(int(score))
                 existing["game3_time"] = str(int(time_seconds))
             else:
-                # keep existing game3/game3_time if present; otherwise ensure keys exist
+                # keep old score if it's better, ensure keys exist
                 existing.setdefault("game3", str(prev_score))
                 existing.setdefault("game3_time", str(int(time_seconds)))
             rest = ",".join(f"{k}={v}" for k, v in existing.items())
@@ -82,6 +87,7 @@ def update_game3_score(name, score, time_seconds):
     write_user_lines(out)
 
 def get_last_username():
+    # return username from last line of file
     lines = read_user_lines()
     if not lines:
         return ""
@@ -101,15 +107,16 @@ class SnakeGame:
 
         tk.Label(self.menu_frame, text="Snake", font=("Arial", 18)).pack(pady=10)
 
+        # determine active player name
         self.active_name = initial_username or get_username() or get_last_username() or "Guest"
 
-        # Simple menu: Start and Exit only
+        # simple menu with start and exit
         btn_frame = tk.Frame(self.menu_frame)
         btn_frame.pack(pady=30)
         tk.Button(btn_frame, text="Start Game", width=16, height=2, command=self.start_game).grid(row=0, column=0, padx=10, pady=5)
         tk.Button(btn_frame, text="Exit", width=16, height=2, command=self.master.quit).grid(row=0, column=1, padx=10, pady=5)
 
-        # Game UI (hidden until start)
+        # game UI (hidden until start)
         self.game_frame = tk.Frame(master)
         self.top_label = tk.Label(self.game_frame, text="", font=("Arial", 12))
         self.top_label.pack(anchor="nw", padx=6, pady=6)
@@ -120,17 +127,18 @@ class SnakeGame:
         tk.Button(bottom_frame, text="Exit to Menu", command=self.exit_to_menu).pack(side="left", padx=10)
         tk.Button(bottom_frame, text="Quit", command=self.master.quit).pack(side="right", padx=10)
 
-        # Game state
+        # game state
         self.running = False
         self.reset_game_state()
 
-        # Controls
+        # controls
         master.bind("<Up>", lambda e: self.change_dir("Up"))
         master.bind("<Down>", lambda e: self.change_dir("Down"))
         master.bind("<Left>", lambda e: self.change_dir("Left"))
         master.bind("<Right>", lambda e: self.change_dir("Right"))
 
     def reset_game_state(self):
+        # reset snake, direction, food, score
         self.snake = [(COLUMNS//2, ROWS//2), (COLUMNS//2-1, ROWS//2)]
         self.direction = "Right"
         self.next_direction = "Right"
@@ -139,12 +147,14 @@ class SnakeGame:
         self.start_time = None
 
     def place_food(self):
+        # pick random empty cell for food
         while True:
             p = (random.randint(0, COLUMNS-1), random.randint(0, ROWS-1))
             if p not in self.snake:
                 return p
 
     def start_game(self):
+        # start game, make sure user exists in file
         self.username = self.active_name
         ensure_user_exists(self.username)
         self.menu_frame.pack_forget()
@@ -155,6 +165,7 @@ class SnakeGame:
         self.update()
 
     def exit_to_menu(self):
+        # stop game and save score/time if running
         if self.running:
             elapsed = time.time() - self.start_time if self.start_time else 0
             update_game3_score(self.username, self.score, elapsed)
@@ -163,15 +174,17 @@ class SnakeGame:
         self.menu_frame.pack(fill="both", expand=True)
 
     def change_dir(self, dir):
+        # change direction unless it's the opposite
         opposites = {"Up":"Down","Down":"Up","Left":"Right","Right":"Left"}
         if self.running and dir != opposites.get(self.direction):
             self.next_direction = dir
 
     def update(self):
+        # main game loop tick
         if not self.running:
             return
         elapsed = int(time.time() - self.start_time)
-        # move snake
+        # move snake head
         self.direction = self.next_direction
         head_x, head_y = self.snake[0]
         if self.direction == "Up":
@@ -184,7 +197,7 @@ class SnakeGame:
             head_x += 1
         new_head = (head_x, head_y)
 
-        # collisions
+        # collision with wall or self -> game over
         if (head_x < 0 or head_x >= COLUMNS or head_y < 0 or head_y >= ROWS) or (new_head in self.snake):
             self.game_over()
             return
@@ -200,6 +213,7 @@ class SnakeGame:
         self.master.after(UPDATE_MS, self.update)
 
     def draw_game(self, elapsed_seconds):
+        # draw food and snake, update top label
         self.canvas.delete("all")
         fx, fy = self.food
         self.canvas.create_rectangle(fx*CELL, fy*CELL, (fx+1)*CELL, (fy+1)*CELL, fill="red", outline="darkred")
@@ -213,6 +227,7 @@ class SnakeGame:
         self.top_label.config(text=f"{time_str}    {score_str}    Player: {self.username}")
 
     def game_over(self):
+        # stop and save score, then show message
         self.running = False
         elapsed = time.time() - self.start_time if self.start_time else 0
         update_game3_score(self.username, self.score, elapsed)

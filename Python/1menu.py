@@ -5,62 +5,60 @@ import subprocess
 import os
 
 def save_username(name):
-    """Safely add a username line; preserve other lines and avoid corrupting separators."""
+    # add name to Python/username.txt safely
     os.makedirs("Python", exist_ok=True)
     path = os.path.join("Python", "username.txt")
 
-    # Read existing lines, normalize them (strip stray leading slashes and CR/LF)
+    # read and clean existing lines
     lines = []
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:
             for ln in f:
                 s = ln.rstrip("\r\n")
                 if s:
-                    # remove accidental leading slashes/backslashes that may have been added
+                    # remove any accidental leading slashes
                     s = s.lstrip("/\\")
                 lines.append(s)
-
-    # Build set of existing usernames
+    # get list of existing names
     usernames = []
     for ln in lines:
         if ":" in ln:
             usernames.append(ln.split(":", 1)[0].strip())
         else:
             usernames.append(ln.strip())
-
-    # If name already present do nothing (but also rewrite normalized file to remove stray slashes)
+    # if name already there, rewrite cleaned file and return
     if name in usernames:
-        # rewrite normalized file to remove any stray leading slashes
+        # rewrite file to remove stray slashes
         with open(path, "w", encoding="utf-8") as f:
             for ln in lines:
                 if ln:
                     f.write(ln + "\n")
         return
-
-    # Ensure last line ends with newline before appending
+    # append new name (make sure last line had newline)
     with open(path, "a", encoding="utf-8") as f:
         if lines and not lines[-1].endswith("\n"):
             f.write("\n")
         f.write(f"{name}:\n")
-
+        
 def get_username():
-    # Return the last entered username (current session)
-    if os.path.exists("Python/username.txt"):
-        with open("Python/username.txt", "r") as f:
+    # return the most recent username if there is one
+    p = os.path.join("Python", "username.txt")
+    if os.path.exists(p):
+        with open(p, "r", encoding="utf-8") as f:
             lines = f.readlines()
             if lines:
                 last_line = lines[-1].strip()
                 if ":" in last_line:
-                    return last_line.split(":")[0]
+                    return last_line.split(":", 1)[0]
                 return last_line
     return None
 
 def parse_leaderboard():
-    # Parse the username.txt file to extract scores and times
+    # read username.txt and collect scores and times
     leaderboard = {"game1": [], "game2": [], "game3": []}
     times = {"game1": {}, "game2": {}, "game3": {}}
     grids = {"game2": {}}
-    mines = {"game2": {}}  # Add mines storage for game2
+    mines = {"game2": {}}
     if os.path.exists("Python/username.txt"):
         with open("Python/username.txt", "r") as f:
             for line in f:
@@ -91,16 +89,13 @@ def parse_leaderboard():
     return leaderboard, times, grids, mines
 
 def open_leaderboard():
-    # Create a new window for the leaderboard
+    # show the leaderboard window
     leaderboard_win = tk.Toplevel(root)
     leaderboard_win.title("Leaderboard")
     leaderboard_win.geometry("400x350")
-
     notebook = ttk.Notebook(leaderboard_win)
     notebook.pack(fill="both", expand=True)
-
     leaderboard, times, grids, mines = parse_leaderboard()
-
     # Game 1 tab
     frame1 = tk.Frame(notebook)
     notebook.add(frame1, text="Blinding Fear")
@@ -115,7 +110,6 @@ def open_leaderboard():
             ).pack(anchor="w", padx=20)
     else:
         tk.Label(frame1, text="No scores yet.", font=("Arial", 12)).pack(pady=20)
-
     # Game 2 tab
     frame2 = tk.Frame(notebook)
     notebook.add(frame2, text="Minesweeper")
@@ -132,7 +126,6 @@ def open_leaderboard():
             ).pack(anchor="w", padx=20)
     else:
         tk.Label(frame2, text="No times yet.", font=("Arial", 12)).pack(pady=20)
-
     # Game 3 tab
     frame3 = tk.Frame(notebook)
     notebook.add(frame3, text="Snake")
@@ -149,42 +142,38 @@ def open_leaderboard():
         tk.Label(frame3, text="No scores yet.", font=("Arial", 12)).pack(pady=20)
 
 def launch_game(filename):
+    # run another python file
     subprocess.Popen(["python", filename])
-
 # --- New startup flow: entry screen before showing main menu ---
 root = tk.Tk()
 root.title("Main Menu")
 root.geometry("400x300")
 
 def write_active_name(name):
+    # save active name to Python/name.txt
     os.makedirs("Python", exist_ok=True)
     name_path = os.path.join("Python", "name.txt")
     with open(name_path, "w", encoding="utf-8") as nf:
         nf.write(name + "\n")
 
 def show_main_menu(username):
-    # Clear any existing widgets in root
+    # clear screen and show menu buttons
     for w in root.winfo_children():
         w.destroy()
-
     tk.Label(root, text=f"Welcome, {username}!", font=("Arial", 16)).pack(pady=10)
-
     frame = tk.Frame(root)
     frame.pack(pady=30)
-
     btn1 = tk.Button(frame, text="Leaderboard", width=20, height=3, command=open_leaderboard)
     btn1.grid(row=0, column=0, padx=10, pady=10)
-
     btn2 = tk.Button(frame, text="Blinding Fear", width=20, height=3, command=lambda: launch_game("Python\\game1.py"))
     btn2.grid(row=0, column=1, padx=10, pady=10)
-
     btn3 = tk.Button(frame, text="Minesweeper", width=20, height=3, command=lambda: launch_game("Python\\game2.py"))
     btn3.grid(row=1, column=0, padx=10, pady=10)
-
     btn4 = tk.Button(frame, text="Snake", width=20, height=3, command=lambda: launch_game("Python\\game3.py"))
     btn4.grid(row=1, column=1, padx=10, pady=10)
 
 def on_start_continue(entry_widget):
+    # save name and go to main menu
     name = entry_widget.get().strip()
     if not name:
         messagebox.showerror("Error", "Please enter a name.")
@@ -193,7 +182,7 @@ def on_start_continue(entry_widget):
     write_active_name(name)
     show_main_menu(name)
 
-# Build initial "enter name" screen (no separate popup)
+# initial name entry screen (no popup)
 start_frame = tk.Frame(root)
 start_frame.pack(fill="both", expand=True)
 

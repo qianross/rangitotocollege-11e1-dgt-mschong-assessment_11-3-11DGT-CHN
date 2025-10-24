@@ -3,17 +3,17 @@ import math
 import os
 import random
 
-# Constants
-WIDTH, HEIGHT = 1000, 1000 # Window size
-CIRCLE_RADIUS = 6 # Radius of the player
+# constants
+WIDTH, HEIGHT = 1000, 1000 # window size
+CIRCLE_RADIUS = 6 # player radius
 FRAME_DELAY = 16  # ~60 FPS
 LEADER_SPEED = 4.1 # player speed
 FOLLOWER_SPEED = 3.5 # follower speed
-CELL_SIZE = 79 # Size of maze cells
-WALL_THICKNESS = 7 # Thickness of maze walls
-GAP_SIZE = 25  # Size of entry hole in thin walls
+CELL_SIZE = 79 # maze cell size
+WALL_THICKNESS = 7 # wall thickness
+GAP_SIZE = 25  # gap for small openings
 
-# Global variables
+# globals
 canvas = None
 bg_img = None
 spotlight_src = None
@@ -37,14 +37,14 @@ yellow_pos = [WIDTH // 2, HEIGHT // 2]
 def rgb_to_hex(rgb_tuple):
     return "#%02x%02x%02x" % rgb_tuple
 
-# Initialize window
+# init window
 root = tk.Tk()
 root.title("Blinding Fear")
 root.geometry(f"{WIDTH}x{HEIGHT}")
 root.configure(bg="black")
 
 def show_menu():
-    # Create menu frame
+    # make the menu frame
     menu_frame = tk.Frame(root, width=WIDTH, height=HEIGHT, bg="black")
     menu_frame.pack(fill="both", expand=True)
 
@@ -55,31 +55,33 @@ def show_menu():
                           activeforeground="white", activebackground="black", highlightthickness=0, bd=0,
                           command=lambda: start_game(menu_frame))
     start_btn.pack(pady=10)
-    # Create EXIT button
+    # exit button
     exit_btn = tk.Button(menu_frame, text="EXIT", font=("Courier", 14), fg="white", bg="black",
                          activeforeground="white", activebackground="black", highlightthickness=0, bd=0,
                          command=root.destroy)
     exit_btn.pack(pady=10)
 
 def get_safe_blob_spawn():
-    # Spawn blobs away from walls, player start, and other blobs
+    # pick blob spot away from walls and player
     while True:
         x = random.randint(BLOB_RADIUS, WIDTH - BLOB_RADIUS)
         y = random.randint(BLOB_RADIUS, HEIGHT - BLOB_RADIUS)
-        # Avoid walls and player start
+        # avoid walls and player start
         if not will_collide(x, y):
-            # Don't spawn on player or other blobs
+            # don't put on player or on other blobs
             if math.hypot(x - leader_pos[0], y - leader_pos[1]) > CIRCLE_RADIUS + BLOB_RADIUS + 10:
                 if all(math.hypot(x - bx, y - by) > BLOB_RADIUS * 2 for bx, by in blobs):
                     return [x, y]
 
 def spawn_blobs():
+    # create blobs list
     global blobs
     blobs = []
     for _ in range(NUM_BLOBS):
         blobs.append(get_safe_blob_spawn())
 
 def draw_blobs():
+    # draw all blobs
     canvas.delete("blob")
     for bx, by in blobs:
         canvas.create_oval(
@@ -89,15 +91,15 @@ def draw_blobs():
         )
 
 def check_blob_collision():
-    # Check if leader collides with any blobs
+    # bump leader into blobs = pickup
     global score
     for i, (bx, by) in enumerate(blobs):
         if math.hypot(leader_pos[0] - bx, leader_pos[1] - by) <= CIRCLE_RADIUS + BLOB_RADIUS:
-            score += 1  # Increase score
+            score += 1  # add score
             if score_label:
                 score_label.config(text=f"Score: {score}")
-            # Respawn this blob
-            blobs[i] = get_safe_blob_spawn()
+            # respawn this blob (small typo below)
+            blobs[i] = get_safe_blob_spawn()  # respwan blob
 
 def start_game(menu_frame):
     menu_frame.destroy()
@@ -110,7 +112,7 @@ def start_game(menu_frame):
     canvas = tk.Canvas(root, width=WIDTH, height=HEIGHT)
     canvas.pack()
 
-    # Load images
+    # load images
     script_dir = os.path.dirname(os.path.abspath(__file__))
     bg_path = os.path.join(script_dir, "noiseTexture.png")
     spotlight_path = os.path.join(script_dir, "noiseTexture 1.png")
@@ -127,14 +129,14 @@ def start_game(menu_frame):
     spotlight_img = tk.PhotoImage(width=WIDTH, height=HEIGHT)
     canvas.create_image((0, 0), image=spotlight_img, anchor="nw")
 
-    # Maze generation
+    # make maze
     GRID_COLS = WIDTH // CELL_SIZE
     GRID_ROWS = HEIGHT // CELL_SIZE
     maze = [[[False, True, True, True, True] for _ in range(GRID_COLS)] for _ in range(GRID_ROWS)]
 
     def carve_maze(x, y):
         maze[y][x][0] = True
-        directions = [(0, -1, 1, 3), (1, 0, 2, 0), (0, 1, 3, 1), (-1, 0, 0, 2)]  # (dx, dy, wall, opposite)
+        directions = [(0, -1, 1, 3), (1, 0, 2, 0), (0, 1, 3, 1), (-1, 0, 0, 2)]  # (dx, dy, wall, opp)
         random.shuffle(directions)
         for dx, dy, wall, opposite in directions:
             nx, ny = x + dx, y + dy
@@ -147,7 +149,7 @@ def start_game(menu_frame):
     start_y = random.randint(0, GRID_ROWS - 1)
     carve_maze(start_x, start_y)
 
-    # Build wall rectangles from maze
+    # build wall rects from maze
     for row in range(GRID_ROWS):
         for col in range(GRID_COLS):
             x1 = col * CELL_SIZE
@@ -200,18 +202,18 @@ def start_game(menu_frame):
         canvas.create_rectangle(x1, y1, x2, y2, fill="#000000", outline="", tags="wall")
 
     def get_safe_spawn():
-        # Spawn out of walls
+        # find spot not in wall
         while True:
             x = random.randint(CIRCLE_RADIUS, WIDTH - CIRCLE_RADIUS)
             y = random.randint(CIRCLE_RADIUS, HEIGHT - CIRCLE_RADIUS)
             if not will_collide(x, y):
                 return [x, y]
 
-    # position player and follower
+    # set initial positions
     leader_pos[:] = get_safe_spawn()
     spotlight_pos[:] = get_safe_spawn()
 
-    spawn_blobs()  # Spawn blobs at game start
+    spawn_blobs()  # make blobs
 
     yellow_pos[:] = get_safe_yellow_spawn()
 
@@ -229,18 +231,18 @@ def start_game(menu_frame):
     update_clock()
 
 def get_safe_yellow_spawn():
-    # Spawn within 80-120 pixels of the leader, random direction, but not overlapping
+    # put yellow near player but not overlapping
     angle = random.uniform(0, 2 * math.pi)
     dist = random.randint(80, 120)
     x = int(leader_pos[0] + math.cos(angle) * dist)
     y = int(leader_pos[1] + math.sin(angle) * dist)
-    # Clamp to screen bounds
+    # clamp to screen
     x = max(YELLOW_RADIUS, min(WIDTH - YELLOW_RADIUS, x))
     y = max(YELLOW_RADIUS, min(HEIGHT - YELLOW_RADIUS, y))
     return [x, y]
 
 def draw_yellow():
-    # Draw yellow blob
+    # draw the yellow orb
     canvas.delete("yellow")
     canvas.create_oval(
         yellow_pos[0] - YELLOW_RADIUS, yellow_pos[1] - YELLOW_RADIUS,
@@ -249,7 +251,7 @@ def draw_yellow():
     )
 
 def draw_spotlight():
-    # Draws the leader/player
+    # draw player light and player blob
     cx, cy = int(spotlight_pos[0]), int(spotlight_pos[1])
     r = CIRCLE_RADIUS
 
@@ -273,18 +275,18 @@ def draw_spotlight():
         leader_pos[0] + r, leader_pos[1] + r,
         fill="white", outline="", tags="leader"
     )
-    draw_blobs()  # Draw blobs after leader
-    draw_yellow()  # Draw yellow circle
+    draw_blobs()  # draw blobs after leader
+    draw_yellow()  # draw yellow
 
 def will_collide(x, y):
-    # Check if (x, y) collides with any wall
+    # check walls collisions
     for x1, y1, x2, y2 in wall_rects:
         if x1 - CIRCLE_RADIUS < x < x2 + CIRCLE_RADIUS and y1 - CIRCLE_RADIUS < y < y2 + CIRCLE_RADIUS:
             return True
     return False
 
 def get_username():
-    # Prefer active player from Python/name.txt
+    # get active name from name.txt or last username entry
     NAME_FILE = os.path.join("Python", "name.txt")
     if os.path.exists(NAME_FILE):
         with open(NAME_FILE, "r", encoding="utf-8") as f:
@@ -292,7 +294,7 @@ def get_username():
                 ln = line.strip()
                 if ln:
                     return ln
-    # Fallback to last entry in Python/username.txt if present
+    # fallback to last line in username.txt
     filename = os.path.join("Python", "username.txt")
     if os.path.exists(filename):
         with open(filename, "r", encoding="utf-8") as f:
@@ -305,6 +307,7 @@ def get_username():
     return "Guest"
 
 def save_score_and_time(username, score, game_time):
+    # write/update only game1 fields and keep other keys
     script_dir = os.path.dirname(os.path.abspath(__file__))
     filename = os.path.join(script_dir, "username.txt")
 
@@ -320,7 +323,7 @@ def save_score_and_time(username, score, game_time):
         if not line_strip:
             continue
         if line_strip.startswith(username + ":"):
-            # parse existing key=val pairs into dict
+            # parse user's key=value pairs
             existing = {}
             parts = line_strip.split(":", 1)
             if len(parts) > 1 and parts[1].strip():
@@ -328,24 +331,24 @@ def save_score_and_time(username, score, game_time):
                     if "=" in part:
                         k, v = part.split("=", 1)
                         existing[k.strip()] = v.strip()
-            # previous score (default 0)
+            # previous score default 0
             try:
                 prev_score = int(existing.get("game1", "0"))
             except ValueError:
                 prev_score = 0
 
-            # decide whether to update game1 fields
+            # update only if new score is higher
             if score > prev_score:
                 existing["game1"] = str(int(score))
                 existing["game1_time"] = str(int(game_time))
             else:
-                # keep existing game1 and game1_time if present, otherwise set time to current if missing
+                # keep old score/time or set time if missing
                 if "game1" not in existing:
                     existing["game1"] = str(int(prev_score))
                 if "game1_time" not in existing:
                     existing["game1_time"] = str(int(game_time))
 
-            # rebuild the user's line preserving other keys
+            # rebuild line with other keys preserved
             rest = ",".join(f"{k}={v}" for k, v in existing.items())
             new_lines.append(f"{username}:{rest}\n")
             found = True
@@ -359,7 +362,7 @@ def save_score_and_time(username, score, game_time):
         f.writelines(new_lines)
 
 def game_over():
-    # Remove game canvas and show Game Over screen
+    # tear down game UI and show game over
     global canvas, clock_label, score_label
     if canvas:
         canvas.pack_forget()
@@ -368,7 +371,7 @@ def game_over():
     if score_label:
         score_label.place_forget()
 
-    # Save score and time
+    # save score and time
     username = get_username()
     save_score_and_time(username, score, game_time)
 
@@ -390,7 +393,7 @@ def game_over():
     menu_btn.pack(pady=20)
 
 def update_positions():
-    # Update positions of leader, spotlight, and yellow blob
+    # move player, follower and yellow orb
     global leader_pos, spotlight_pos, yellow_pos, score, game_time
     new_x, new_y = leader_pos[0], leader_pos[1]
     leader_speed = LEADER_SPEED
@@ -416,7 +419,7 @@ def update_positions():
     if pressing_into_wall:
         leader_speed = int(LEADER_SPEED * 2)
 
-    # Store old position
+    # save old pos
     old_x, old_y = leader_pos[0], leader_pos[1]
 
     if 'w' in keys_pressed:
@@ -438,7 +441,7 @@ def update_positions():
 
     leader_pos[0], leader_pos[1] = new_x, new_y
 
-    # Only move follower if player actually moved
+    # only move follower when player moved
     moving = (old_x != new_x or old_y != new_y)
 
     if moving:
@@ -450,18 +453,18 @@ def update_positions():
             spotlight_pos[0] += step * dx / dist
             spotlight_pos[1] += step * dy / dist
 
-    # Only move yellow if player actually moved
+    # move yellow opposite to player movement
     if moving:
         dx = leader_pos[0] - yellow_pos[0]
         dy = leader_pos[1] - yellow_pos[1]
         dist = math.hypot(dx, dy)
         if dist > 0:
             step = min(FOLLOWER_SPEED, dist)
-            # Move in the opposite direction from the leader
+            # move away from leader
             yellow_pos[0] -= step * dx / dist
             yellow_pos[1] -= step * dy / dist
 
-        # Teleport yellow to center if it touches the edge
+        # teleport yellow to center if it touches the edge
         if (
             yellow_pos[0] <= YELLOW_RADIUS or yellow_pos[0] >= WIDTH - YELLOW_RADIUS or
             yellow_pos[1] <= YELLOW_RADIUS or yellow_pos[1] >= HEIGHT - YELLOW_RADIUS
