@@ -3,6 +3,7 @@ from tkinter import messagebox
 from tkinter import ttk
 import subprocess
 import os
+import sys
 
 def save_username(name):
     # add name to Python/username.txt safely
@@ -59,8 +60,9 @@ def parse_leaderboard():
     times = {"game1": {}, "game2": {}, "game3": {}}
     grids = {"game2": {}}
     mines = {"game2": {}}
-    if os.path.exists("Python/username.txt"):
-        with open("Python/username.txt", "r") as f:
+    p = os.path.join("Python", "username.txt")
+    if os.path.exists(p):
+        with open(p, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line or ":" not in line:
@@ -69,7 +71,7 @@ def parse_leaderboard():
                 scores = {}
                 for pair in games.split(","):
                     if "=" in pair:
-                        g, s = pair.split("=")
+                        g, s = pair.split("=", 1)
                         scores[g.strip()] = s.strip()
                 for game in ["game1", "game2", "game3"]:
                     if game in scores:
@@ -142,8 +144,13 @@ def open_leaderboard():
         tk.Label(frame3, text="No scores yet.", font=("Arial", 12)).pack(pady=20)
 
 def launch_game(filename):
-    # run another python file
-    subprocess.Popen(["python", filename])
+    # run another python file using same interpreter
+    try:
+        subprocess.Popen([sys.executable, filename])
+    except Exception:
+        # fallback to plain call
+        subprocess.Popen(["python", filename])
+
 # --- New startup flow: entry screen before showing main menu ---
 root = tk.Tk()
 root.title("Main Menu")

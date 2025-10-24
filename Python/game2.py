@@ -3,30 +3,34 @@ from tkinter import simpledialog, messagebox
 import random
 import os
 import time
+import sys
 
 BASE_DIR = os.path.dirname(__file__)
 NAME_FILE = os.path.join(BASE_DIR, "name.txt")
 USERNAME_FILE = os.path.join(BASE_DIR, "username.txt")
 
+# safe defaults so importing module won't open dialogs
+GRID_SIZE = 10
+NUM_MINES = 10
+
 def get_game_settings():
-    # ask user for grid size and mines
+    # ask user for grid size and mines (only called at runtime)
     root = tk.Tk()
     root.withdraw()
-    grid_size = simpledialog.askinteger("Grid Size", "Enter grid size (e.g. 10):", minvalue=2, maxvalue=20)
+    grid_size = simpledialog.askinteger("Grid Size", "Enter grid size (e.g. 10):", minvalue=2, maxvalue=30)
     if not grid_size:
         messagebox.showerror("Error", "Grid size is required!")
         root.destroy()
         raise SystemExit
-    num_mines = simpledialog.askinteger("Mines", f"Enter number of mines (max {grid_size*grid_size-1}):",
-                                        minvalue=1, maxvalue=grid_size*grid_size-1)
+    max_mines = max(1, grid_size * grid_size - 1)
+    num_mines = simpledialog.askinteger("Mines", f"Enter number of mines (max {max_mines}):",
+                                        minvalue=1, maxvalue=max_mines)
     if not num_mines:
         messagebox.showerror("Error", "Number of mines is required!")
         root.destroy()
         raise SystemExit
     root.destroy()
     return grid_size, num_mines
-
-GRID_SIZE, NUM_MINES = get_game_settings()
 
 def get_username():
     # return active name from name.txt or last username entry
@@ -267,9 +271,19 @@ class MineSweeper:
             messagebox.showinfo("Mine Sweeper", "You hit a mine! Game over.")
 
 if __name__ == "__main__":
+    # get settings at runtime to avoid dialogs on import
+    try:
+        GRID_SIZE, NUM_MINES = get_game_settings()
+    except SystemExit:
+        # user cancelled, exit cleanly
+        sys.exit(0)
+
     root = tk.Tk()
     root.title("Minesweeper")
-    root.geometry("600x600")
+    # set a sensible minimum window size
+    win_w = min(800, GRID_SIZE * 40)
+    win_h = min(800, GRID_SIZE * 40 + 150)
+    root.geometry(f"{win_w}x{win_h}")
     username = get_username()
-    MineSweeper(root, username)
+    app = MineSweeper(root, username)
     root.mainloop()

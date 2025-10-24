@@ -1,3 +1,0 @@
-qian:game1=2,game1_time=3,game2_score=1,game2_time=7,game2_grid=4,game2_mines=1
-g:game1=0,game1_time=2,game3=50,game3_time=16,game2_score=1,game2_time=7,game2_grid=4,game2_mines=1
-chonraymond:game1=1,game1_time=3,game2_score=1,game2_time=8,game2_grid=4,game2_mines=1,game3=40,game3_time=6

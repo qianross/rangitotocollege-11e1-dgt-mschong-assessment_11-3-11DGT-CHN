@@ -4,13 +4,13 @@ import os
 import random
 
 # constants
-WIDTH, HEIGHT = 1000, 1000 # window size
-CIRCLE_RADIUS = 6 # player radius
+WIDTH, HEIGHT = 1000, 1000  # window size
+CIRCLE_RADIUS = 6  # player radius
 FRAME_DELAY = 16  # ~60 FPS
-LEADER_SPEED = 4.1 # player speed
-FOLLOWER_SPEED = 3.5 # follower speed
-CELL_SIZE = 79 # maze cell size
-WALL_THICKNESS = 7 # wall thickness
+LEADER_SPEED = 4.1  # player speed
+FOLLOWER_SPEED = 3.5  # follower speed
+CELL_SIZE = 79  # maze cell size
+WALL_THICKNESS = 7  # wall thickness
 GAP_SIZE = 25  # gap for small openings
 
 # globals
@@ -34,8 +34,10 @@ score_label = None
 YELLOW_RADIUS = 12
 yellow_pos = [WIDTH // 2, HEIGHT // 2]
 
+
 def rgb_to_hex(rgb_tuple):
     return "#%02x%02x%02x" % rgb_tuple
+
 
 # init window
 root = tk.Tk()
@@ -43,63 +45,91 @@ root.title("Blinding Fear")
 root.geometry(f"{WIDTH}x{HEIGHT}")
 root.configure(bg="black")
 
+
 def show_menu():
-    # make the menu frame
+    # create the menu screen
     menu_frame = tk.Frame(root, width=WIDTH, height=HEIGHT, bg="black")
     menu_frame.pack(fill="both", expand=True)
 
     title = tk.Label(menu_frame, text="BLINDING FEAR", fg="white", bg="black", font=("Courier", 20, "bold"))
     title.pack(pady=20)
 
-    start_btn = tk.Button(menu_frame, text="START", font=("Courier", 14), fg="white", bg="black",
-                          activeforeground="white", activebackground="black", highlightthickness=0, bd=0,
-                          command=lambda: start_game(menu_frame))
+    start_btn = tk.Button(
+        menu_frame,
+        text="START",
+        font=("Courier", 14),
+        fg="white",
+        bg="black",
+        activeforeground="white",
+        activebackground="black",
+        highlightthickness=0,
+        bd=0,
+        command=lambda: start_game(menu_frame),
+    )
     start_btn.pack(pady=10)
-    # exit button
-    exit_btn = tk.Button(menu_frame, text="EXIT", font=("Courier", 14), fg="white", bg="black",
-                         activeforeground="white", activebackground="black", highlightthickness=0, bd=0,
-                         command=root.destroy)
+
+    exit_btn = tk.Button(
+        menu_frame,
+        text="EXIT",
+        font=("Courier", 14),
+        fg="white",
+        bg="black",
+        activeforeground="white",
+        activebackground="black",
+        highlightthickness=0,
+        bd=0,
+        command=root.destroy,
+    )
     exit_btn.pack(pady=10)
+
 
 def get_safe_blob_spawn():
     # pick blob spot away from walls and player
     while True:
         x = random.randint(BLOB_RADIUS, WIDTH - BLOB_RADIUS)
         y = random.randint(BLOB_RADIUS, HEIGHT - BLOB_RADIUS)
-        # avoid walls and player start
         if not will_collide(x, y):
-            # don't put on player or on other blobs
             if math.hypot(x - leader_pos[0], y - leader_pos[1]) > CIRCLE_RADIUS + BLOB_RADIUS + 10:
                 if all(math.hypot(x - bx, y - by) > BLOB_RADIUS * 2 for bx, by in blobs):
                     return [x, y]
 
+
 def spawn_blobs():
-    # create blobs list
+    # fill blobs list
     global blobs
     blobs = []
     for _ in range(NUM_BLOBS):
         blobs.append(get_safe_blob_spawn())
 
+
 def draw_blobs():
     # draw all blobs
+    if canvas is None:
+        return
     canvas.delete("blob")
     for bx, by in blobs:
         canvas.create_oval(
-            bx - BLOB_RADIUS, by - BLOB_RADIUS,
-            bx + BLOB_RADIUS, by + BLOB_RADIUS,
-            fill="blue", outline="", tags="blob"
+            bx - BLOB_RADIUS,
+            by - BLOB_RADIUS,
+            bx + BLOB_RADIUS,
+            by + BLOB_RADIUS,
+            fill="blue",
+            outline="",
+            tags="blob",
         )
 
+
 def check_blob_collision():
-    # bump leader into blobs = pickup
+    # pickup blobs when touching them
     global score
     for i, (bx, by) in enumerate(blobs):
         if math.hypot(leader_pos[0] - bx, leader_pos[1] - by) <= CIRCLE_RADIUS + BLOB_RADIUS:
-            score += 1  # add score
+            score += 1
             if score_label:
                 score_label.config(text=f"Score: {score}")
-            # respawn this blob (small typo below)
-            blobs[i] = get_safe_blob_spawn()  # respwan blob
+            # respawn this blob
+            blobs[i] = get_safe_blob_spawn()
+
 
 def start_game(menu_frame):
     menu_frame.destroy()
@@ -136,7 +166,7 @@ def start_game(menu_frame):
 
     def carve_maze(x, y):
         maze[y][x][0] = True
-        directions = [(0, -1, 1, 3), (1, 0, 2, 0), (0, 1, 3, 1), (-1, 0, 0, 2)]  # (dx, dy, wall, opp)
+        directions = [(0, -1, 1, 3), (1, 0, 2, 0), (0, 1, 3, 1), (-1, 0, 0, 2)]
         random.shuffle(directions)
         for dx, dy, wall, opposite in directions:
             nx, ny = x + dx, y + dy
@@ -213,7 +243,7 @@ def start_game(menu_frame):
     leader_pos[:] = get_safe_spawn()
     spotlight_pos[:] = get_safe_spawn()
 
-    spawn_blobs()  # make blobs
+    spawn_blobs()
 
     yellow_pos[:] = get_safe_yellow_spawn()
 
@@ -230,28 +260,39 @@ def start_game(menu_frame):
     update_positions()
     update_clock()
 
+
 def get_safe_yellow_spawn():
     # put yellow near player but not overlapping
     angle = random.uniform(0, 2 * math.pi)
     dist = random.randint(80, 120)
     x = int(leader_pos[0] + math.cos(angle) * dist)
     y = int(leader_pos[1] + math.sin(angle) * dist)
-    # clamp to screen
     x = max(YELLOW_RADIUS, min(WIDTH - YELLOW_RADIUS, x))
     y = max(YELLOW_RADIUS, min(HEIGHT - YELLOW_RADIUS, y))
     return [x, y]
 
+
 def draw_yellow():
     # draw the yellow orb
+    if canvas is None:
+        return
     canvas.delete("yellow")
     canvas.create_oval(
-        yellow_pos[0] - YELLOW_RADIUS, yellow_pos[1] - YELLOW_RADIUS,
-        yellow_pos[0] + YELLOW_RADIUS, yellow_pos[1] + YELLOW_RADIUS,
-        fill="yellow", outline="", tags="yellow"
+        yellow_pos[0] - YELLOW_RADIUS,
+        yellow_pos[1] - YELLOW_RADIUS,
+        yellow_pos[0] + YELLOW_RADIUS,
+        yellow_pos[1] + YELLOW_RADIUS,
+        fill="yellow",
+        outline="",
+        tags="yellow",
     )
+
 
 def draw_spotlight():
     # draw player light and player blob
+    if spotlight_src is None or bg_img is None or spotlight_img is None or canvas is None:
+        return
+
     cx, cy = int(spotlight_pos[0]), int(spotlight_pos[1])
     r = CIRCLE_RADIUS
 
@@ -271,22 +312,28 @@ def draw_spotlight():
 
     canvas.delete("leader")
     canvas.create_oval(
-        leader_pos[0] - r, leader_pos[1] - r,
-        leader_pos[0] + r, leader_pos[1] + r,
-        fill="white", outline="", tags="leader"
+        leader_pos[0] - r,
+        leader_pos[1] - r,
+        leader_pos[0] + r,
+        leader_pos[1] + r,
+        fill="white",
+        outline="",
+        tags="leader",
     )
-    draw_blobs()  # draw blobs after leader
-    draw_yellow()  # draw yellow
+    draw_blobs()
+    draw_yellow()
+
 
 def will_collide(x, y):
-    # check walls collisions
+    # check collisions with maze walls
     for x1, y1, x2, y2 in wall_rects:
         if x1 - CIRCLE_RADIUS < x < x2 + CIRCLE_RADIUS and y1 - CIRCLE_RADIUS < y < y2 + CIRCLE_RADIUS:
             return True
     return False
 
+
 def get_username():
-    # get active name from name.txt or last username entry
+    # get active name from Python/name.txt or last username entry
     NAME_FILE = os.path.join("Python", "name.txt")
     if os.path.exists(NAME_FILE):
         with open(NAME_FILE, "r", encoding="utf-8") as f:
@@ -294,7 +341,6 @@ def get_username():
                 ln = line.strip()
                 if ln:
                     return ln
-    # fallback to last line in username.txt
     filename = os.path.join("Python", "username.txt")
     if os.path.exists(filename):
         with open(filename, "r", encoding="utf-8") as f:
@@ -305,6 +351,7 @@ def get_username():
                     return last.split(":", 1)[0].strip()
                 return last
     return "Guest"
+
 
 def save_score_and_time(username, score, game_time):
     # write/update only game1 fields and keep other keys
@@ -323,7 +370,6 @@ def save_score_and_time(username, score, game_time):
         if not line_strip:
             continue
         if line_strip.startswith(username + ":"):
-            # parse user's key=value pairs
             existing = {}
             parts = line_strip.split(":", 1)
             if len(parts) > 1 and parts[1].strip():
@@ -331,24 +377,20 @@ def save_score_and_time(username, score, game_time):
                     if "=" in part:
                         k, v = part.split("=", 1)
                         existing[k.strip()] = v.strip()
-            # previous score default 0
             try:
                 prev_score = int(existing.get("game1", "0"))
             except ValueError:
                 prev_score = 0
 
-            # update only if new score is higher
             if score > prev_score:
                 existing["game1"] = str(int(score))
                 existing["game1_time"] = str(int(game_time))
             else:
-                # keep old score/time or set time if missing
                 if "game1" not in existing:
                     existing["game1"] = str(int(prev_score))
                 if "game1_time" not in existing:
                     existing["game1_time"] = str(int(game_time))
 
-            # rebuild line with other keys preserved
             rest = ",".join(f"{k}={v}" for k, v in existing.items())
             new_lines.append(f"{username}:{rest}\n")
             found = True
@@ -361,8 +403,9 @@ def save_score_and_time(username, score, game_time):
     with open(filename, "w", encoding="utf-8") as f:
         f.writelines(new_lines)
 
+
 def game_over():
-    # tear down game UI and show game over
+    # stop UI and show game over screen
     global canvas, clock_label, score_label
     if canvas:
         canvas.pack_forget()
@@ -371,7 +414,6 @@ def game_over():
     if score_label:
         score_label.place_forget()
 
-    # save score and time
     username = get_username()
     save_score_and_time(username, score, game_time)
 
@@ -384,13 +426,29 @@ def game_over():
     score_display = tk.Label(over_frame, text=f"Score: {score}", fg="cyan", bg="black", font=("Courier", 18))
     score_display.pack(pady=10)
 
-    time_display = tk.Label(over_frame, text=f"Time Survived: {int(game_time)//60:02}:{int(game_time)%60:02}", fg="white", bg="black", font=("Courier", 18))
+    time_display = tk.Label(
+        over_frame,
+        text=f"Time Survived: {int(game_time) // 60:02}:{int(game_time) % 60:02}",
+        fg="white",
+        bg="black",
+        font=("Courier", 18),
+    )
     time_display.pack(pady=10)
 
-    menu_btn = tk.Button(over_frame, text="RETURN TO MENU", font=("Courier", 14), fg="white", bg="black",
-                         activeforeground="white", activebackground="black", highlightthickness=0, bd=0,
-                         command=lambda: [over_frame.destroy(), show_menu()])
+    menu_btn = tk.Button(
+        over_frame,
+        text="RETURN TO MENU",
+        font=("Courier", 14),
+        fg="white",
+        bg="black",
+        activeforeground="white",
+        activebackground="black",
+        highlightthickness=0,
+        bd=0,
+        command=lambda: [over_frame.destroy(), show_menu()],
+    )
     menu_btn.pack(pady=20)
+
 
 def update_positions():
     # move player, follower and yellow orb
@@ -399,19 +457,19 @@ def update_positions():
     leader_speed = LEADER_SPEED
     pressing_into_wall = False
 
-    if 'w' in keys_pressed:
+    if "w" in keys_pressed:
         test_y = max(leader_pos[1] - LEADER_SPEED, CIRCLE_RADIUS)
         if will_collide(leader_pos[0], test_y):
             pressing_into_wall = True
-    if 's' in keys_pressed:
+    if "s" in keys_pressed:
         test_y = min(leader_pos[1] + LEADER_SPEED, HEIGHT - CIRCLE_RADIUS)
         if will_collide(leader_pos[0], test_y):
             pressing_into_wall = True
-    if 'a' in keys_pressed:
+    if "a" in keys_pressed:
         test_x = max(leader_pos[0] - LEADER_SPEED, CIRCLE_RADIUS)
         if will_collide(test_x, leader_pos[1]):
             pressing_into_wall = True
-    if 'd' in keys_pressed:
+    if "d" in keys_pressed:
         test_x = min(leader_pos[0] + LEADER_SPEED, WIDTH - CIRCLE_RADIUS)
         if will_collide(test_x, leader_pos[1]):
             pressing_into_wall = True
@@ -419,29 +477,27 @@ def update_positions():
     if pressing_into_wall:
         leader_speed = int(LEADER_SPEED * 2)
 
-    # save old pos
     old_x, old_y = leader_pos[0], leader_pos[1]
 
-    if 'w' in keys_pressed:
+    if "w" in keys_pressed:
         test_y = max(leader_pos[1] - leader_speed, CIRCLE_RADIUS)
         if not will_collide(leader_pos[0], test_y):
             new_y = test_y
-    if 's' in keys_pressed:
+    if "s" in keys_pressed:
         test_y = min(leader_pos[1] + leader_speed, HEIGHT - CIRCLE_RADIUS)
         if not will_collide(leader_pos[0], test_y):
             new_y = test_y
-    if 'a' in keys_pressed:
+    if "a" in keys_pressed:
         test_x = max(leader_pos[0] - leader_speed, CIRCLE_RADIUS)
         if not will_collide(test_x, new_y):
             new_x = test_x
-    if 'd' in keys_pressed:
+    if "d" in keys_pressed:
         test_x = min(leader_pos[0] + leader_speed, WIDTH - CIRCLE_RADIUS)
         if not will_collide(test_x, new_y):
             new_x = test_x
 
     leader_pos[0], leader_pos[1] = new_x, new_y
 
-    # only move follower when player moved
     moving = (old_x != new_x or old_y != new_y)
 
     if moving:
@@ -453,35 +509,32 @@ def update_positions():
             spotlight_pos[0] += step * dx / dist
             spotlight_pos[1] += step * dy / dist
 
-    # move yellow opposite to player movement
     if moving:
         dx = leader_pos[0] - yellow_pos[0]
         dy = leader_pos[1] - yellow_pos[1]
         dist = math.hypot(dx, dy)
         if dist > 0:
             step = min(FOLLOWER_SPEED, dist)
-            # move away from leader
             yellow_pos[0] -= step * dx / dist
             yellow_pos[1] -= step * dy / dist
 
-        # teleport yellow to center if it touches the edge
         if (
-            yellow_pos[0] <= YELLOW_RADIUS or yellow_pos[0] >= WIDTH - YELLOW_RADIUS or
-            yellow_pos[1] <= YELLOW_RADIUS or yellow_pos[1] >= HEIGHT - YELLOW_RADIUS
+            yellow_pos[0] <= YELLOW_RADIUS
+            or yellow_pos[0] >= WIDTH - YELLOW_RADIUS
+            or yellow_pos[1] <= YELLOW_RADIUS
+            or yellow_pos[1] >= HEIGHT - YELLOW_RADIUS
         ):
             yellow_pos[0] = WIDTH // 2
             yellow_pos[1] = HEIGHT // 2
 
-    check_blob_collision()  # Check for blob pickup
+    check_blob_collision()
 
-    # Yellow ball collection check
     if math.hypot(leader_pos[0] - yellow_pos[0], leader_pos[1] - yellow_pos[1]) <= CIRCLE_RADIUS + YELLOW_RADIUS:
         score += 10
         if score_label:
             score_label.config(text=f"Score: {score}")
-        yellow_pos[:] = get_safe_yellow_spawn()  # respawn yellow ball near player
+        yellow_pos[:] = get_safe_yellow_spawn()
 
-    # Game Over Check
     dx = leader_pos[0] - spotlight_pos[0]
     dy = leader_pos[1] - spotlight_pos[1]
     dist = math.hypot(dx, dy)
@@ -492,10 +545,11 @@ def update_positions():
     draw_spotlight()
     root.after(FRAME_DELAY, update_positions)
 
+
 def update_clock():
-    # Updates the game timer when moving
+    # add to time only when moving
     global game_time
-    if any(k in keys_pressed for k in ['w', 'a', 's', 'd']):
+    if any(k in keys_pressed for k in ["w", "a", "s", "d"]):
         game_time += FRAME_DELAY / 1000.0
 
     minutes = int(game_time) // 60
@@ -504,11 +558,14 @@ def update_clock():
         clock_label.config(text=f"{minutes:02}:{seconds:02}")
     root.after(FRAME_DELAY, update_clock)
 
+
 def on_key_press(event):
     keys_pressed.add(event.keysym.lower())
 
+
 def on_key_release(event):
     keys_pressed.discard(event.keysym.lower())
+
 
 # Launch menu
 show_menu()

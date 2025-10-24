@@ -30,18 +30,27 @@ def write_user_lines(lines):
         f.write("\n".join(lines) + ("\n" if lines else ""))
 
 def get_username():
-    # try name.txt first, return first non-empty line
+    # try name.txt first, return first non-empty line, else try last username entry
     if os.path.exists(NAME_FILE):
         with open(NAME_FILE, "r", encoding="utf-8") as nf:
             for line in nf:
                 ln = line.strip()
                 if ln:
                     return ln
-    # none found -> return empty
-    return ""
+    if os.path.exists(USERNAME_FILE):
+        with open(USERNAME_FILE, "r", encoding="utf-8") as f:
+            lines = [l.strip() for l in f if l.strip()]
+            if lines:
+                last = lines[-1]
+                if ":" in last:
+                    return last.split(":", 1)[0].strip()
+                return last
+    return None
 
 def ensure_user_exists(name):
     # add "name:" line if it's missing
+    if not name:
+        return
     lines = read_user_lines()
     for line in lines:
         if ":" in line and line.split(":", 1)[0].strip() == name:
@@ -108,7 +117,8 @@ class SnakeGame:
         tk.Label(self.menu_frame, text="Snake", font=("Arial", 18)).pack(pady=10)
 
         # determine active player name
-        self.active_name = initial_username or get_username() or get_last_username() or "Guest"
+        uname = initial_username or get_username() or get_last_username() or "Guest"
+        self.active_name = uname
 
         # simple menu with start and exit
         btn_frame = tk.Frame(self.menu_frame)
@@ -238,5 +248,7 @@ class SnakeGame:
 if __name__ == "__main__":
     root = tk.Tk()
     initial_user = sys.argv[1] if len(sys.argv) > 1 else ""
+    app = SnakeGame(root, initial_username=initial_user)
+    root.mainloop()
     app = SnakeGame(root, initial_username=initial_user)
     root.mainloop()
